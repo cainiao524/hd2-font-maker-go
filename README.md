@@ -1,12 +1,14 @@
-# HD2 Font Maker 1.3.0-go.1
+# HD2 Font Maker 1.3.0-go.2
 
 HD2 Font Maker 的公开归档版本，包含 Go/MyGo 源码；Windows 发行包从 Releases 下载。产品以 1.3 的前端 1.3.0 / 引擎 1.3.7 行为为基线，使用 Go 引擎和 MyGo 单窗口界面，从用户自己的字体生成 Helldivers 2 字体替换包。
+
+本次修复中文路径导致图集生成失败。当前补丁验证见 VALIDATION.zh-CN.txt；下文长期基线数据来自 1.3.0-go.1。
 
 ## 下载与运行
 
 Windows x64 发行包：[GitHub Releases](/releases)
 
-- 当前文件名：`HD2-Font-Maker-1.3.0-go.1-Windows.zip`（约 14 MB）。
+- 当前文件名：`HD2-Font-Maker-1.3.0-go.2-Windows.zip`（约 14 MB）。
 - 将整个文件夹解压到游戏目录以外的可写位置。
 - 运行 `HD2FontMaker.exe`。请保留 EXE 同目录的 DLL 和 `vendor` 文件夹。
 - 不需要安装 Python、Go 或 WebView。
@@ -36,7 +38,7 @@ Windows x64 发行包：[GitHub Releases](/releases)
 
 界面语言不会改变生成内容。字重和轮廓开关可以分别启用。
 
-## 验证结果
+## 1.3.0-go.1 基线验证结果
 
 最终冷生成未使用已生成结果缓存；五组主字体与符号全开，字重匹配和轮廓处理均开启。测试字体 A 用时 66.961 秒，测试字体 B 用时 114.517 秒。以上为本机单次观测，不是统计基准；不含字体导入和首次扫描游戏库存。
 

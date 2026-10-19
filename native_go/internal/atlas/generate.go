@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/draw"
 	"image/png"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -140,11 +141,14 @@ func Generate(ctx context.Context, sources []Source, opts Options) (*Result, err
 	report := Report{Sources: []SourceReport{}, DefaultGlyphCharacters: []string{}, Threads: threads}
 	expected := map[rune]bool{}
 	for i, source := range selected {
-		fontPath, err := filepath.Abs(source.FontPath)
-		if err != nil {
-			return nil, err
+		// The bundled Windows helper uses narrow file APIs. Keep every path
+		// argument ASCII and relative; Go handles the Unicode source/work paths.
+		fontName := fmt.Sprintf("font-%d.ttf", i)
+		if err := copyPreparedFont(source.FontPath, filepath.Join(work, fontName)); err != nil {
+			return nil, fmt.Errorf("stage atlas font: %w", err)
 		}
-		charset := filepath.Join(work, fmt.Sprintf("chars-%d.txt", i))
+		charsetName := fmt.Sprintf("chars-%d.txt", i)
+		charset := filepath.Join(work, charsetName)
 		chars := make([]string, len(source.Charset))
 		for j, cp := range source.Charset {
 			chars[j] = fmt.Sprintf("0x%X", cp)
@@ -156,7 +160,7 @@ func Generate(ctx context.Context, sources []Source, opts Options) (*Result, err
 		if i > 0 {
 			args = append(args, "-and")
 		}
-		args = append(args, "-font", fontPath, "-charset", charset)
+		args = append(args, "-font", fontName, "-charset", charsetName)
 		name := source.Name
 		if name == "" {
 			name = filepath.Base(source.FontPath)
@@ -173,7 +177,7 @@ func Generate(ctx context.Context, sources []Source, opts Options) (*Result, err
 	}
 	imagePath, metaPath := filepath.Join(work, "atlas."+format), filepath.Join(work, "atlas.json")
 	args = append(args, "-type", "mtsdf", "-size", "32", "-pxrange", "8", "-potr", "-yorigin", "top", "-nokerning", "-pxalign", "on",
-		"-imageout", imagePath, "-json", metaPath, "-threads", strconv.Itoa(threads))
+		"-imageout", filepath.Base(imagePath), "-json", filepath.Base(metaPath), "-threads", strconv.Itoa(threads))
 	if opts.Progress != nil {
 		opts.Progress(fmt.Sprintf("Generating atlas: %d glyphs / %d threads", len(expected), threads))
 	}
@@ -210,6 +214,24 @@ func Generate(ctx context.Context, sources []Source, opts Options) (*Result, err
 	}
 	result.Report = report
 	return result, nil
+}
+
+func copyPreparedFont(source, destination string) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	output, err := os.Create(destination)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(output, input)
+	closeErr := output.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
 }
 
 func selectSources(sources []Source, keys []rune) ([]Source, []rune, error) {
