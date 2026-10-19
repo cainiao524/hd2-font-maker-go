@@ -1,0 +1,112 @@
+{
+  "version": "1.3.0-go.1",
+  "baseline": {
+    "frontend": "1.3.0",
+    "engine": "1.3.7",
+    "source_zip_sha256": "4a0e4858de258c3cbbdd88e06cd8d682097dd12aa5d6869afcc6eae9f4df57da"
+  },
+  "scope": {
+    "main_groups": [
+      "latin",
+      "sc",
+      "tc",
+      "jp",
+      "ko"
+    ],
+    "symbols": true,
+    "match_weights": true,
+    "process_outlines": true,
+    "interface_locales": 14
+  },
+  "runtime": "Go plus bundled native libraries; no Python in the product",
+  "in_game_verified": false,
+  "game_installation_changed": false,
+  "cases": [
+    {
+      "case": "pixel",
+      "generation_seconds": 66.9613796,
+      "font_resource_slots_checked": 36,
+      "fresh_font_pairs": 17,
+      "codepoints_checked_across_resource_slots": 1957145,
+      "advance_mismatch_codepoints": 0,
+      "atlas_pairs_byte_identical": 13,
+      "gpu_bytes": 469762224,
+      "atlas_dimensions": [
+        [
+          2048,
+          1024
+        ],
+        [
+          2048,
+          2048
+        ],
+        [
+          4096,
+          2048
+        ]
+      ],
+      "shaping": {
+        "pairs": {
+          "pass": 17
+        },
+        "runs": {
+          "pass": 1360
+        },
+        "emitted_geometry_pairs": {
+          "pass": 1972
+        }
+      },
+      "reviewed_empty_contour_font_instances": 11,
+      "unresolved_semantic_issues": 0
+    },
+    {
+      "case": "girl",
+      "generation_seconds": 114.5173405,
+      "font_resource_slots_checked": 36,
+      "fresh_font_pairs": 17,
+      "codepoints_checked_across_resource_slots": 2109193,
+      "advance_mismatch_codepoints": 0,
+      "atlas_pairs_byte_identical": 13,
+      "gpu_bytes": 469762224,
+      "atlas_dimensions": [
+        [
+          2048,
+          1024
+        ],
+        [
+          2048,
+          2048
+        ],
+        [
+          4096,
+          2048
+        ]
+      ],
+      "shaping": {
+        "pairs": {
+          "pass": 17
+        },
+        "runs": {
+          "pass": 1360
+        },
+        "emitted_geometry_pairs": {
+          "pass": 1972
+        }
+      },
+      "reviewed_empty_contour_font_instances": 21,
+      "unresolved_semantic_issues": 0
+    }
+  ],
+  "binaries": {
+    "mygoapp\\bin\\HD2FontMaker.exe": "98182ca83c62f24b9cfefb641b805700bca28141fa7bcde885f59ca8b0dc3f17",
+    "bin\\hd2font-build.exe": "017e069c168c8a164dfa98a42b6fbd64acde2eb9d4f16c2140b60068a56dcb1f",
+    "bin\\hd2skia.dll": "797d9fff2ccd56b36f07689510b30df6f5afd73882f1f66fad06961250c6e912",
+    "bin\\hd2harfbuzz.dll": "0e4f34a4f4f148d00ccd123f1487f264eae3eec627c995eaa6ae9a2b459a3385"
+  },
+  "limits": [
+    "Full checks use two supplied test fonts, not every possible font.",
+    "Font binary layout, GIDs, metadata and empty move/close records may differ.",
+    "Empty-contour review accepts only exact remaining drawn commands; drawn zero-area paths and direction reversals are not waived.",
+    "Timings are observed generation runs without generated-result caches, not idle-machine statistical benchmarks."
+  ]
+}

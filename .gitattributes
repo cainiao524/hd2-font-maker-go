@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.dll -text
+*.exe -text
+*.ttf -text
+*.otf -text
+*.ttc -text
+*.otc -text
+*.png -text
+*.zip -text
