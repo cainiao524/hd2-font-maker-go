@@ -3,6 +3,7 @@ package pipeline
 
 import (
 	"context"
+	"runtime"
 
 	"hd2font/native/internal/atlas"
 	"hd2font/native/internal/inventory"
@@ -20,6 +21,7 @@ type Options struct {
 	BinDir          string
 	WorkDir         string
 	Name            string
+	// Workers is the number of independent build jobs, 1 through MaxWorkers.
 	Workers         int
 	// ZIPLevel accepts 0..9; DefaultOptions selects fast, lossless level 1.
 	ZIPLevel int
@@ -27,8 +29,15 @@ type Options struct {
 	AtlasExecutable string
 }
 
+// MaxWorkers bounds independent build jobs; each job also runs threads of its own.
+const MaxWorkers = 8
+
+// DefaultWorkers gives one build job per four logical CPUs, so an 8-thread
+// machine keeps the original two jobs. Outputs do not depend on the count.
+func DefaultWorkers() int { return max(1, min(MaxWorkers, runtime.NumCPU()/4)) }
+
 func DefaultOptions() Options {
-	return Options{Languages: []string{"sc"}, MatchWeights: true, ProcessOutlines: false, Workers: 2, ZIPLevel: 1, Name: "HD2 Custom Fonts"}
+	return Options{Languages: []string{"sc"}, MatchWeights: true, ProcessOutlines: false, Workers: DefaultWorkers(), ZIPLevel: 1, Name: "HD2 Custom Fonts"}
 }
 
 type SelectionReport struct {

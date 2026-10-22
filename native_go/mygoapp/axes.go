@@ -11,7 +11,7 @@ import (
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
-const Version = "1.3.0-go.3"
+const Version = "2.0.0"
 
 func readFontAxes(path string) ([][]AxisInfo, error) {
 	f, err := os.Open(path)

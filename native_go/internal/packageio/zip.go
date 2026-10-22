@@ -9,11 +9,13 @@ import (
 	"compress/flate"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"io/fs"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -32,6 +34,9 @@ type Progress struct {
 	Total int
 	Name  string
 }
+
+// MaxWorkers bounds concurrent member verification after the ZIP is written.
+const MaxWorkers = 8
 
 type Options struct {
 	// WorkDir is the temporary directory's parent; empty uses the OS default.
@@ -319,39 +324,114 @@ func VerifyZIP(ctx context.Context, path string, expected []MemberInfo) (Report,
 	if expected != nil && len(reader.File) != len(expected) {
 		return report, fmt.Errorf("ZIP member count differs: got %d, want %d", len(reader.File), len(expected))
 	}
-	buffer := make([]byte, 1024*1024)
-	report.Members = make([]MemberInfo, 0, len(reader.File))
-	for i, file := range reader.File {
-		member, err := file.Open()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	// The whole-file hash and the members are verified concurrently, each
+	// worker through its own handle; failures still report the first member.
+	var whole struct {
+		size int64
+		sum  string
+		err  error
+	}
+	var group sync.WaitGroup
+	group.Go(func() {
+		digest := sha256.New()
+		whole.size, whole.err = io.CopyBuffer(digest, contextReader{ctx, input}, make([]byte, 1024*1024))
+		whole.sum = fmt.Sprintf("%x", digest.Sum(nil))
+		if whole.err != nil {
+			cancel()
+		}
+	})
+	report.Members = make([]MemberInfo, len(reader.File))
+	failures := make([]error, len(reader.File))
+	queue := make(chan int, len(reader.File))
+	for i := range reader.File {
+		queue <- i
+	}
+	close(queue)
+	for range min(MaxWorkers, max(1, runtime.NumCPU()-1), len(reader.File)) {
+		group.Go(func() {
+			if err := verifyMembers(ctx, path, stat.Size(), queue, expected, report.Members, failures); err != nil {
+				cancel()
+			}
+		})
+	}
+	group.Wait()
+	// A failure cancels the other workers; report the real failure, not the
+	// cancellations it caused.
+	for _, err := range failures {
+		if err != nil && !errors.Is(err, context.Canceled) {
+			return report, err
+		}
+	}
+	for _, err := range failures {
 		if err != nil {
 			return report, err
 		}
-		digest, crc := sha256.New(), crc32.NewIEEE()
-		count, err := io.CopyBuffer(io.MultiWriter(digest, crc), contextReader{ctx, member}, buffer)
-		closeErr := member.Close()
-		if err == nil {
-			err = closeErr
-		}
-		if err != nil {
-			return report, fmt.Errorf("verify %q: %w", file.Name, err)
-		}
-		info := MemberInfo{Name: file.Name, Size: uint64(count), CompressedSize: file.CompressedSize64, CRC32: crc.Sum32(), SHA256: fmt.Sprintf("%x", digest.Sum(nil))}
-		if info.Size != file.UncompressedSize64 || info.CRC32 != file.CRC32 {
-			return report, fmt.Errorf("ZIP member %q failed size/CRC verification", file.Name)
-		}
-		if expected != nil && info != expected[i] {
-			return report, fmt.Errorf("ZIP member %q differs from input", file.Name)
-		}
-		report.Members = append(report.Members, info)
 	}
-	digest := sha256.New()
-	report.Size, err = io.CopyBuffer(digest, contextReader{ctx, input}, buffer)
-	if err != nil {
+	if whole.err != nil {
+		return report, whole.err
+	}
+	if err := ctx.Err(); err != nil {
 		return report, err
 	}
+	report.Size, report.SHA256 = whole.size, whole.sum
 	if report.Size != stat.Size() {
 		return report, fmt.Errorf("ZIP size changed during readback")
 	}
-	report.SHA256 = fmt.Sprintf("%x", digest.Sum(nil))
 	return report, nil
+}
+
+// verifyMembers checks the members whose indexes arrive on queue, storing each
+// result or failure at its index. It returns the first failure it records.
+func verifyMembers(ctx context.Context, path string, size int64, queue <-chan int, expected, members []MemberInfo, failures []error) error {
+	input, err := os.Open(path)
+	if err == nil {
+		defer input.Close()
+	}
+	var reader *zip.Reader
+	if err == nil {
+		reader, err = zip.NewReader(input, size)
+	}
+	if err == nil && len(reader.File) != len(members) {
+		err = fmt.Errorf("ZIP member count changed during readback")
+	}
+	buffer := make([]byte, 1024*1024)
+	for i := range queue {
+		if err == nil {
+			err = ctx.Err()
+		}
+		if err == nil {
+			members[i], err = verifyMember(ctx, reader.File[i], buffer)
+		}
+		if err == nil && expected != nil && members[i] != expected[i] {
+			err = fmt.Errorf("ZIP member %q differs from input", reader.File[i].Name)
+		}
+		if err != nil {
+			failures[i] = err
+			return err
+		}
+	}
+	return nil
+}
+
+func verifyMember(ctx context.Context, file *zip.File, buffer []byte) (MemberInfo, error) {
+	member, err := file.Open()
+	if err != nil {
+		return MemberInfo{}, err
+	}
+	digest, crc := sha256.New(), crc32.NewIEEE()
+	count, err := io.CopyBuffer(io.MultiWriter(digest, crc), contextReader{ctx, member}, buffer)
+	closeErr := member.Close()
+	if err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return MemberInfo{}, fmt.Errorf("verify %q: %w", file.Name, err)
+	}
+	info := MemberInfo{Name: file.Name, Size: uint64(count), CompressedSize: file.CompressedSize64, CRC32: crc.Sum32(), SHA256: fmt.Sprintf("%x", digest.Sum(nil))}
+	if info.Size != file.UncompressedSize64 || info.CRC32 != file.CRC32 {
+		return MemberInfo{}, fmt.Errorf("ZIP member %q failed size/CRC verification", file.Name)
+	}
+	return info, nil
 }

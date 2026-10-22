@@ -86,7 +86,7 @@ func build(ctx context.Context, inv *inventory.Inventory, ops fontOps, options O
 			}
 		}
 	}
-	options.Workers = max(1, min(2, options.Workers))
+	options.Workers = max(1, min(MaxWorkers, options.Workers))
 	if options.Name = strings.TrimSpace(options.Name); options.Name == "" {
 		options.Name = "HD2 Custom Fonts"
 	}
@@ -104,7 +104,7 @@ func build(ctx context.Context, inv *inventory.Inventory, ops fontOps, options O
 	}
 	defer os.RemoveAll(work)
 	s := &buildState{ctx: ctx, inv: inv, ops: ops, options: options, progress: progress, work: work, styled: make(map[string]*inventory.Face), fallbacks: make(map[string][]*inventory.Face), replacements: make(map[string]replacement), changes: make(map[string][]archiveio.Resource), changed: make(map[string]*inventory.Resource)}
-	s.report = &Report{Tool: "HD2 Font Mod Generator", Version: "1.3.0-go.3", EngineProfile: "python-1.3.7-parity-v1", CreatedAt: time.Now().UTC().Format(time.RFC3339), Name: options.Name, Selections: []SelectionReport{}, Resources: []ResourceReport{}, Atlases: []AtlasReport{}, RuntimeSlots: []RuntimeReport{}, StyleAdaptation: []StyleReport{}, FontReadback: []FontVerification{}, FullReplacement: true, NoesisFamilyStylePreserved: true, Files: make(map[string]FileReport), Performance: map[string]any{"package_cache_hit": false, "cache_hits": 0, "cache_misses": 0, "style_workers": options.Workers, "merge_workers": options.Workers, "format_workers": options.Workers, "atlas_workers": options.Workers}, LosslessCompression: map[string]any{"cff_profiles": []any{}, "zip_deflate_level": options.ZIPLevel, "texture_bytes_unchanged": true, "resource_offset_aliasing": false}, Note: "Font resources and packaging verified offline; in-game rendering has not been verified. Fallback glyphs do not add game translations."}
+	s.report = &Report{Tool: "HD2 Font Mod Generator", Version: "2.0.0", EngineProfile: "python-1.3.7-parity-v1", CreatedAt: time.Now().UTC().Format(time.RFC3339), Name: options.Name, Selections: []SelectionReport{}, Resources: []ResourceReport{}, Atlases: []AtlasReport{}, RuntimeSlots: []RuntimeReport{}, StyleAdaptation: []StyleReport{}, FontReadback: []FontVerification{}, FullReplacement: true, NoesisFamilyStylePreserved: true, Files: make(map[string]FileReport), Performance: map[string]any{"package_cache_hit": false, "cache_hits": 0, "cache_misses": 0, "style_workers": options.Workers, "merge_workers": options.Workers, "format_workers": options.Workers, "atlas_workers": options.Workers}, LosslessCompression: map[string]any{"cff_profiles": []any{}, "zip_deflate_level": options.ZIPLevel, "texture_bytes_unchanged": true, "resource_offset_aliasing": false}, Note: "Font resources and packaging verified offline; in-game rendering has not been verified. Fallback glyphs do not add game translations."}
 	s.report.Performance["glyph_pipeline"] = "python-1.3.7-parity-v1"
 	progress("Preparing selected font")
 	raw, err := os.ReadFile(options.FontPath)

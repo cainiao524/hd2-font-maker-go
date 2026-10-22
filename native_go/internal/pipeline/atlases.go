@@ -271,7 +271,9 @@ func (s *buildState) atlases(generate atlasGenerator) error {
 	}
 	s.report.Performance["unique_atlas_sources"] = len(jobs)
 
-	threads := max(1, min(16, runtime.NumCPU()-2)/min(s.options.Workers, len(jobs)))
+	// Concurrent atlas jobs share all but two logical CPUs; msdf-atlas-gen output
+	// does not depend on its thread count.
+	threads := max(1, max(1, runtime.NumCPU()-2)/min(s.options.Workers, len(jobs)))
 	var generators []func(context.Context) (atlasOutput, error)
 	for index, job := range jobs {
 		generators = append(generators, func(ctx context.Context) (atlasOutput, error) {

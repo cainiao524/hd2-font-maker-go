@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"time"
 
@@ -143,21 +145,38 @@ func (s *buildState) packageOutput() error {
 	sort.Strings(archives)
 	var files []packageio.File
 	s.progress("Writing and reading back font resources")
+	// Archives are written and verified independently; results are recorded in
+	// archive order afterwards.
+	partPaths := func(name string) [3]string {
+		return [3]string{filepath.Join(patchDir, name), filepath.Join(patchDir, name+".stream"), filepath.Join(patchDir, name+".gpu_resources")}
+	}
+	var patchJobs []func(context.Context) ([3]FileReport, error)
 	for _, name := range archives {
-		paths := [3]string{filepath.Join(patchDir, name), filepath.Join(patchDir, name+".stream"), filepath.Join(patchDir, name+".gpu_resources")}
-		if _, err := archiveio.WritePatchParts(s.changes[name], paths); err != nil {
-			return err
-		}
-		if err := s.verifyPatch(name, paths, s.changes[name]); err != nil {
-			return err
-		}
+		patchJobs = append(patchJobs, func(context.Context) (infos [3]FileReport, err error) {
+			paths := partPaths(name)
+			if _, err = archiveio.WritePatchParts(s.changes[name], paths); err != nil {
+				return infos, err
+			}
+			if err = s.verifyPatch(name, paths, s.changes[name]); err != nil {
+				return infos, err
+			}
+			for i, path := range paths {
+				if infos[i], err = hashFile(path); err != nil {
+					return infos, err
+				}
+			}
+			return infos, nil
+		})
+	}
+	written, err := runJobs(s.ctx, patchJobs, max(1, runtime.NumCPU()-2), nil)
+	if err != nil {
+		return err
+	}
+	for a, name := range archives {
+		paths := partPaths(name)
 		for i, suffix := range []string{"", ".stream", ".gpu_resources"} {
 			member := "Fonts/" + name + ".patch_0" + suffix
-			info, err := hashFile(paths[i])
-			if err != nil {
-				return err
-			}
-			s.report.Files[member] = info
+			s.report.Files[member] = written[a][i]
 			files = append(files, packageio.File{Name: member, Path: paths[i]})
 		}
 	}

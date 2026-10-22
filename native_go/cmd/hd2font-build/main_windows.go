@@ -45,7 +45,7 @@ func run(ctx context.Context, args []string, output, progress io.Writer) error {
 	flags.StringVar(&options.BinDir, "bin", filepath.Dir(executable), "directory containing native font libraries")
 	flags.StringVar(&options.WorkDir, "work", "", "temporary workspace parent directory")
 	flags.StringVar(&options.Name, "name", options.Name, "mod-manager package name")
-	flags.IntVar(&options.Workers, "workers", options.Workers, "maximum independent build jobs (1 or 2)")
+	flags.IntVar(&options.Workers, "workers", options.Workers, "maximum independent build jobs (1 through 8)")
 	flags.IntVar(&options.ZIPLevel, "zip-level", options.ZIPLevel, "ZIP compression level (0 through 9)")
 	flags.StringVar(&options.AtlasExecutable, "atlas", "", "native msdf-atlas-gen executable override")
 	if err := flags.Parse(args); err != nil {
