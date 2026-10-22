@@ -12,7 +12,7 @@ var iconFiles embed.FS
 
 var icons = func() map[string]*ui.SVG {
 	out := map[string]*ui.SVG{}
-	for _, name := range []string{"folder-open", "file-type", "refresh-cw", "archive", "folder", "x"} {
+	for _, name := range []string{"folder-open", "file-type", "refresh-cw", "archive", "folder", "x", "rotate-ccw", "gamepad-2"} {
 		data, err := iconFiles.ReadFile("icons/" + name + ".svg")
 		if err != nil {
 			panic(err)
@@ -21,3 +21,8 @@ var icons = func() map[string]*ui.SVG {
 	}
 	return out
 }()
+
+// appIcon is the project's own application icon, shown in the title bar and taskbar.
+//
+//go:embed icons/app.png
+var appIcon []byte

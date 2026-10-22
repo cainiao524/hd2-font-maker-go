@@ -49,6 +49,9 @@ type application struct {
 	previewDirtyAt time.Time
 	scroll         ui.ScrollState
 	theme          *ui.Theme
+	// notice is a catalog key shown once as a toast by the next frame.
+	notice   string
+	dragOver bool
 }
 
 func newApplication(opts Options) (*application, error) {
@@ -86,9 +89,6 @@ func newApplication(opts Options) (*application, error) {
 			a.localeName = loc.Name
 		}
 	}
-	a.theme.Accent = ui.RGB(25, 112, 91)
-	a.theme.Background = ui.RGB(250, 251, 252)
-	a.theme.Radius = 5
 	if loadErr != nil {
 		a.setError("error.failed", loadErr)
 	}
@@ -326,6 +326,7 @@ func (a *application) generate() {
 			a.settings.LastOutput = result.OutputZIP
 			a.progress = Progress{Stage: "done", Fraction: 1}
 			a.statusKey = "status.complete"
+			a.notice = "stage.done"
 			a.save()
 		})
 	}()
@@ -406,6 +407,8 @@ func Run(opts Options) error {
 		a.window = mygo.NewWindow(mygo.WindowOptions{Title: a.t("app.title") + " " + Version, Width: w, Height: h,
 			MinWidth: 540, MinHeight: 480, Content: ui.View(a.view)})
 		a.wake = a.window.Invalidate
+		// The window keeps the default icon if the PNG cannot be used.
+		_ = a.window.SetIcon(appIcon)
 		a.window.OnClosed(func() {
 			close(a.closed)
 			if a.cancel != nil {

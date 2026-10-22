@@ -348,3 +348,49 @@ func savePNG(t *testing.T, path string, img image.Image) {
 		t.Fatal(closeErr)
 	}
 }
+
+func TestReadinessThemeAndLists(t *testing.T) {
+	b := &recordingBackend{requests: make(chan BuildRequest, 1)}
+	a := testApp(t, b)
+	a.settings.OutputZIP = filepath.Join(t.TempDir(), "result.zip")
+	want := []string{a.t("game.path"), a.t("section.font")}
+	if got := a.missing(); !slices.Equal(got, want) {
+		t.Fatalf("missing = %v, want %v", got, want)
+	}
+	tt := ui.NewTester(a.view, 1140, 860)
+	if !tt.HasText(a.t("ready.missing", "items", a.list(want))) {
+		t.Fatal("missing steps are not listed in the footer")
+	}
+	_ = tt.Click(a.t("build"))
+	select {
+	case req := <-b.requests:
+		t.Fatalf("generate ran while steps were missing: %+v", req)
+	default:
+	}
+	if missing := readyApp(t, b).missing(); len(missing) != 0 {
+		t.Fatalf("ready app still misses %v", missing)
+	}
+
+	tt.SetDark(true)
+	tt.Frame()
+	if a.theme == nil || !a.theme.Dark {
+		t.Fatal("theme does not follow the dark system appearance")
+	}
+	if output := os.Getenv("HD2_MYGO_SCREENSHOTS"); output != "" {
+		savePNG(t, filepath.Join(output, "en-dark.png"), tt.Image())
+	}
+	tt.SetDark(false)
+	tt.Frame()
+	if a.theme.Dark {
+		t.Fatal("theme does not return to the light appearance")
+	}
+
+	a.settings.Locale = "zh-TW"
+	if got := a.list([]string{"甲", "乙"}); got != "甲、乙" {
+		t.Fatalf("zh-TW list = %q", got)
+	}
+	a.settings.Locale = "de"
+	if got := a.list([]string{"A", "B"}); got != "A, B" {
+		t.Fatalf("de list = %q", got)
+	}
+}

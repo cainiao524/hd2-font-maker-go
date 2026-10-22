@@ -1,14 +1,14 @@
-# HD2 Font Maker 1.3.0-go.2
+# HD2 Font Maker 1.3.0-go.3
 
 HD2 Font Maker 的公开归档版本，包含 Go/MyGo 源码；Windows 发行包从 Releases 下载。产品以 1.3 的前端 1.3.0 / 引擎 1.3.7 行为为基线，使用 Go 引擎和 MyGo 单窗口界面，从用户自己的字体生成 Helldivers 2 字体替换包。
 
-本次修复中文路径导致图集生成失败。当前补丁验证见 VALIDATION.zh-CN.txt；下文长期基线数据来自 1.3.0-go.1。
+本版更新 MyGo 界面：分步流程、生成前缺项提示、拖放导入字体、跟随系统深色模式和应用图标，14 种界面语言同步更新。字体引擎与 1.3.0-go.2 相同，引擎修复的验证见 VALIDATION.zh-CN.txt；下文长期基线数据来自 1.3.0-go.1。
 
 ## 下载与运行
 
 Windows x64 发行包：[GitHub Releases](/releases)
 
-- 当前文件名：`HD2-Font-Maker-1.3.0-go.2-Windows.zip`（约 14 MB）。
+- 当前文件名：`HD2-Font-Maker-1.3.0-go.3-Windows.zip`（约 14 MB）。
 - 将整个文件夹解压到游戏目录以外的可写位置。
 - 运行 `HD2FontMaker.exe`。请保留 EXE 同目录的 DLL 和 `vendor` 文件夹。
 - 不需要安装 Python、Go 或 WebView。
@@ -31,9 +31,9 @@ Windows x64 发行包：[GitHub Releases](/releases)
 
 1. 解压整个文件夹，运行 `HD2FontMaker.exe`。
 2. 选择 Helldivers 2 安装目录或其 `data` 文件夹。
-3. 选择 TTF、OTF、TTC 或 OTC 字体；字体集合可选择具体字面。
+3. 选择或直接拖入 TTF、OTF、TTC 或 OTC 字体；字体集合可选择具体字面。
 4. 选择西文、简中、繁中、日文、韩文中的目标字体组，并按需选择表情或特殊符号。
-5. 选择输出 ZIP，开始生成。
+5. 选择输出 ZIP，开始生成；底部会列出生成前仍缺少的步骤。
 6. 用 Mod 管理器安装生成的字体包。程序不会自行安装或启动游戏。
 
 界面语言不会改变生成内容。字重和轮廓开关可以分别启用。
