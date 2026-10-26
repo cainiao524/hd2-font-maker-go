@@ -220,10 +220,21 @@ func (a *application) inspectFont(path string) {
 			}
 			a.faces, a.facesPath, a.siblings = info.Faces, selectedPath, info.Siblings
 			reload := previous.Path == path || previous.Path == selectedPath
+			related, selectedIndex := reload, previous.FaceIndex
+			if !related {
+				// Importing Bold may have anchored the source at a separate Regular
+				// file. Recognize that original member when it is imported again.
+				for _, member := range previous.Family {
+					if member.Path == selectedPath {
+						related, selectedIndex = true, member.FaceIndex
+						break
+					}
+				}
+			}
 			selected := info.Faces[0]
-			if reload {
+			if related {
 				for _, face := range info.Faces {
-					if face.Index == previous.FaceIndex {
+					if face.Index == selectedIndex {
 						selected = face
 					}
 				}
@@ -241,7 +252,7 @@ func (a *application) inspectFont(path string) {
 				a.settings.Font = FontSelection{Path: selectedPath, FaceIndex: selected.Index, Family: previous.Family, WeightFaces: previous.WeightFaces}
 			} else {
 				a.applyFamily(familyOf(selectedPath, info.Faces, info.Siblings, selected))
-				if reload {
+				if related {
 					a.settings.Font.WeightFaces = remapWeightFaces(previous, a.members())
 				}
 			}

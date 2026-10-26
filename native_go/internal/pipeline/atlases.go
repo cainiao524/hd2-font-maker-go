@@ -234,8 +234,17 @@ func (s *buildState) atlases(generate atlasGenerator) error {
 		sort.SliceStable(original, func(a, b int) bool {
 			return distance(int(original[a].Weight), int(use.Template.Weight)) < distance(int(original[b].Weight), int(use.Template.Weight))
 		})
+		// Match runtime-font fallback order: siblings fill gaps before the game.
+		original = append(s.familyFallbacks(custom, int(use.Template.Weight)), original...)
 		keys := keysByArchive[use.Archive]
 		sources := effectiveSources(custom, original, keys)
+		for i := range sources {
+			if _, prepared := s.familyPixel[sources[i].face.Digest]; prepared {
+				// Family faces already went through custom preparation; preserve
+				// their authored spacing and avoid original-font cleanup a second time.
+				sources[i].custom = true
+			}
+		}
 		id := atlasJobID(custom, keys, sources)
 		j, ok := jobIDs[id]
 		if !ok {

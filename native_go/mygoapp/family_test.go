@@ -169,3 +169,53 @@ func TestReimportRefreshesFamilyAndRemapsWeightPins(t *testing.T) {
 		t.Fatalf("cache reload changed the family: got %+v want %+v", a.settings.Font, saved)
 	}
 }
+
+func TestReimportNonBaseFamilyMemberKeepsManualWeights(t *testing.T) {
+	for _, name := range []string{"single-face", "collection"} {
+		t.Run(name, func(t *testing.T) {
+			bold := FontFace{Index: 0, Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}}
+			other := FontFace{Index: 0, Name: "Other Regular", Style: FaceStyle{Family: "Other", Subfamily: "Regular", Weight: 400, Width: 5}}
+			regular := FamilyFace{Path: "stored/regular.ttf", Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
+			faces := []FontFace{bold}
+			if name == "collection" {
+				bold.Index = 1
+				faces = []FontFace{other, bold}
+			}
+			b := &refreshFamilyBackend{info: FontInfo{Path: "stored/bold.font", Faces: faces, Siblings: []FamilyFace{regular}}}
+			a := testApp(t, b)
+			a.settings.MatchWeights = true
+			awaitImport := func() {
+				awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
+				if a.errorKey != "" {
+					t.Fatal(a.errorKey, a.errorDetail)
+				}
+			}
+			a.inspectFont("downloads/bold.font")
+			awaitImport()
+			if name == "collection" {
+				a.selectFace(bold)
+				awaitImport()
+			}
+			if a.settings.Font.Path != regular.Path {
+				t.Fatalf("family base was not Regular: %+v", a.settings.Font)
+			}
+			a.settings.Font.WeightFaces = map[int]int{500: 1, 700: -1}
+			a.inspectFont("downloads/bold.font")
+			awaitImport()
+			if want := (map[int]int{500: 1, 700: -1}); !reflect.DeepEqual(a.settings.Font.WeightFaces, want) {
+				t.Fatalf("reimporting the original Bold reset manual sources: got %v want %v", a.settings.Font.WeightFaces, want)
+			}
+			rows := a.weightRows()
+			if rows[1].Source != "Pixel Bold" || rows[2].Source != regular.Name || rows[2].Kind != "synthetic" {
+				t.Fatalf("manual weights changed rendering after reimport: %+v", rows)
+			}
+			// A different file and family must still reset the old manual choices.
+			b.info = FontInfo{Path: "stored/other.font", Faces: []FontFace{other}}
+			a.inspectFont("downloads/other.font")
+			awaitImport()
+			if len(a.settings.Font.WeightFaces) != 0 || len(a.settings.Font.Family) != 0 {
+				t.Fatalf("unrelated import retained the previous family: %+v", a.settings.Font)
+			}
+		})
+	}
+}
