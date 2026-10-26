@@ -4,6 +4,7 @@ $projectRoot = $PSScriptRoot
 $versionText = [IO.File]::ReadAllText((Join-Path $projectRoot 'native_go/mygoapp/axes.go'))
 $version = [regex]::Match($versionText, 'const Version = "([0-9]+\.[0-9]+\.[0-9]+)"').Groups[1].Value
 if (!$version) { throw 'Application version was not found' }
+$validationFile = "VALIDATION-$version.zh-CN.txt"
 if (!$SkipBuild) {
     if (!$Go) { $Go = Join-Path $projectRoot '.toolchains/go1.27.3/go/bin/go.exe' }
     if (!(Test-Path -LiteralPath $Go)) { $Go = (Get-Command go.exe -ErrorAction Stop).Source }
@@ -31,7 +32,7 @@ foreach ($relative in @('HD2FontMaker.exe','hd2harfbuzz.dll','hd2skia.dll','skia
     'vendor/msdf-atlas-gen/msdf-atlas-gen.exe','vendor/LICENSE-msdf-atlas-gen.txt','vendor/LICENSE-msdfgen.txt')) {
     Copy-PackageFile (Join-Path $bin $relative) (Join-Path $windowsStage $relative)
 }
-foreach ($relative in @('LICENSE','RELEASE_NOTES.md','VALIDATION-2.1.0.zh-CN.txt')) {
+foreach ($relative in @('LICENSE','RELEASE_NOTES.md',$validationFile)) {
     Copy-PackageFile (Join-Path $projectRoot $relative) (Join-Path $windowsStage $relative)
 }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'native_go/LICENSES') -Destination (Join-Path $windowsStage 'licenses') -Recurse
@@ -50,7 +51,7 @@ Use only one font mod replacing the same game resources at a time.
 
 Existing users may keep their UserData folder. This archive contains no UserData,
 personal fonts, game resources or generated font mods.
-See RELEASE_NOTES.md and VALIDATION-2.1.0.zh-CN.txt for changes and test limits.
+See RELEASE_NOTES.md and $validationFile for changes and test limits.
 "@
 [IO.File]::WriteAllText((Join-Path $windowsStage 'README.txt'), $instructions, [Text.UTF8Encoding]::new($false))
 
