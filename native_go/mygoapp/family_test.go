@@ -2,6 +2,8 @@ package mygoapp
 
 import (
 	"context"
+	"image"
+	"reflect"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -107,5 +109,63 @@ func TestFamilyRowsLabelsAndRebuilds(t *testing.T) {
 	a.generate()
 	if a.done {
 		t.Fatal("a new build still shows the previous completion")
+	}
+}
+
+type refreshFamilyBackend struct {
+	recordingBackend
+	info FontInfo
+}
+
+func (b *refreshFamilyBackend) InspectFont(context.Context, string) (FontInfo, error) {
+	return b.info, nil
+}
+
+func (b *refreshFamilyBackend) Preview(context.Context, PreviewRequest) (PreviewResult, error) {
+	return PreviewResult{Image: image.NewRGBA(image.Rect(0, 0, 2, 2))}, nil
+}
+
+func TestReimportRefreshesFamilyAndRemapsWeightPins(t *testing.T) {
+	regular := FontFace{Index: 0, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
+	medium := FamilyFace{Path: "stored/medium.ttf", Name: "Pixel Medium", Style: FaceStyle{Family: "Pixel", Subfamily: "Medium", Weight: 500, Width: 5}}
+	bold := FamilyFace{Path: "stored/bold.ttf", Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}}
+	b := &refreshFamilyBackend{info: FontInfo{Path: "stored/regular.ttf", Faces: []FontFace{regular}, Siblings: []FamilyFace{medium}}}
+	a := testApp(t, b)
+	a.settings.MatchWeights = true
+	importOriginal := func() {
+		a.inspectFont("downloads/regular.ttf")
+		awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
+		if a.errorKey != "" {
+			t.Fatal(a.errorKey, a.errorDetail)
+		}
+	}
+	importOriginal()
+	a.settings.Font.WeightFaces = map[int]int{400: -1, 500: 1}
+	// Discovery order can change when a newly added file sorts before Medium.
+	b.info.Siblings = []FamilyFace{bold, medium}
+	importOriginal()
+	if len(a.members()) != 3 || a.members()[1].Path != bold.Path {
+		t.Fatalf("reimport discarded the new Bold: %+v", a.members())
+	}
+	if want := (map[int]int{400: -1, 500: 2}); !reflect.DeepEqual(a.settings.Font.WeightFaces, want) {
+		t.Fatalf("manual pins changed their source: got %v want %v", a.settings.Font.WeightFaces, want)
+	}
+	rows := a.weightRows()
+	if rows[2].Source != bold.Name || rows[2].Kind != "native" {
+		t.Fatalf("new Bold is not used as drawn: %+v", rows)
+	}
+	// A removed member's pin must not silently select whoever takes its index.
+	b.info.Siblings = []FamilyFace{bold}
+	importOriginal()
+	if want := (map[int]int{400: -1}); !reflect.DeepEqual(a.settings.Font.WeightFaces, want) {
+		t.Fatalf("removed Medium left a stale pin: %v", a.settings.Font.WeightFaces)
+	}
+	// Restoring the cached source still keeps its externally stored family.
+	saved := a.settings.Font
+	b.info.Siblings = nil
+	a.inspectFont(saved.Path)
+	awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
+	if !reflect.DeepEqual(a.settings.Font, saved) {
+		t.Fatalf("cache reload changed the family: got %+v want %+v", a.settings.Font, saved)
 	}
 }

@@ -75,14 +75,18 @@ func familySiblings(ctx context.Context, userData, path string, faces []mygoapp.
 	return out, nil
 }
 
-// siblingFaces lists the faces of data that share a family with any of faces.
+// siblingFaces lists the static faces of data that share a family with any of
+// faces. Variable faces use their own axes, not the static family selection.
 func siblingFaces(data []byte, faces []mygoapp.FontFace) []mygoapp.FamilyFace {
 	loaders, err := ot.NewLoaders(bytes.NewReader(data))
 	if err != nil {
 		return nil
 	}
 	var out []mygoapp.FamilyFace
-	for index := range loaders {
+	for index, loader := range loaders {
+		if loader.HasTable(ot.MustNewTag("fvar")) {
+			continue
+		}
 		style, err := inventory.DescribeStyle(data, index)
 		if err != nil {
 			continue

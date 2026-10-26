@@ -228,9 +228,10 @@ func (a *application) inspectFont(path string) {
 					}
 				}
 			}
-			if reload && len(previous.Family) > 0 {
+			if reload && path == selectedPath && len(previous.Family) > 0 {
 				// Stored siblings are not beside the stored source; keep the saved family
-				// and offer its other files again when another face is selected.
+				// when restoring that cache. An explicit import of the original file
+				// instead refreshes the family from its current directory contents.
 				a.sourceFace = candidate(selectedPath, selected)
 				for _, member := range previous.Family {
 					if member.Path != selectedPath {
@@ -240,6 +241,9 @@ func (a *application) inspectFont(path string) {
 				a.settings.Font = FontSelection{Path: selectedPath, FaceIndex: selected.Index, Family: previous.Family, WeightFaces: previous.WeightFaces}
 			} else {
 				a.applyFamily(familyOf(selectedPath, info.Faces, info.Siblings, selected))
+				if reload {
+					a.settings.Font.WeightFaces = remapWeightFaces(previous, a.members())
+				}
 			}
 			a.settings.Font.Axes = nil
 			for _, face := range info.Faces {

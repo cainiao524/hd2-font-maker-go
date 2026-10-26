@@ -87,6 +87,33 @@ func (a *application) members() []FamilyFace {
 	return append([]FamilyFace{a.sourceFace}, a.settings.Font.Family...)
 }
 
+// remapWeightFaces keeps manual choices attached to the same stored face when
+// rediscovery changes the member order. Removed faces return to automatic.
+func remapWeightFaces(previous FontSelection, members []FamilyFace) map[int]int {
+	old := append([]FamilyFace{{Path: previous.Path, FaceIndex: previous.FaceIndex}}, previous.Family...)
+	var pins map[int]int
+	for target, index := range previous.WeightFaces {
+		mapped := -2
+		if index == -1 {
+			mapped = -1 // synthetic emphasis always refers to the current base
+		} else if index >= 0 && index < len(old) {
+			for i, member := range members {
+				if member.Path == old[index].Path && member.FaceIndex == old[index].FaceIndex {
+					mapped = i
+					break
+				}
+			}
+		}
+		if mapped >= -1 {
+			if pins == nil {
+				pins = make(map[int]int)
+			}
+			pins[target] = mapped
+		}
+	}
+	return pins
+}
+
 type weightRow struct {
 	Target int
 	Source string
