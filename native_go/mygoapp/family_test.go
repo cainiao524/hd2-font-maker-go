@@ -219,3 +219,76 @@ func TestReimportNonBaseFamilyMemberKeepsManualWeights(t *testing.T) {
 		})
 	}
 }
+
+func TestReimportCachedSiblingKeepsFamilyAndPins(t *testing.T) {
+	for _, matchWeights := range []bool{true, false} {
+		name := "matched"
+		if !matchWeights {
+			name = "unmatched"
+		}
+		t.Run(name, func(t *testing.T) {
+			regular := FontFace{Index: 0, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
+			medium := FontFace{Index: 0, Name: "Pixel Medium", Style: FaceStyle{Family: "Pixel", Subfamily: "Medium", Weight: 500, Width: 5}}
+			bold := FontFace{Index: 0, Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}}
+			regularPath, mediumPath, boldPath := "stored/regular.ttf", "stored/medium.ttf", "stored/bold.ttf"
+			b := &refreshFamilyBackend{info: FontInfo{Path: boldPath, Faces: []FontFace{bold}, Siblings: []FamilyFace{candidate(regularPath, regular), candidate(mediumPath, medium)}}}
+			a := testApp(t, b)
+			a.settings.MatchWeights = true
+			wait := func(a *application) {
+				awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
+				if a.errorKey != "" {
+					t.Fatal(a.errorKey, a.errorDetail)
+				}
+			}
+			a.inspectFont("downloads/bold.ttf")
+			wait(a)
+			a.settings.Font.WeightFaces = map[int]int{500: 2, 700: 1}
+			a.settings.MatchWeights = matchWeights
+			// Cached members live in separate content-hash folders, so importing
+			// this already-known Bold does not rediscover Regular or Medium.
+			b.info.Siblings = nil
+			a.inspectFont(boldPath)
+			wait(a)
+			members := a.members()
+			if len(members) != 3 {
+				t.Fatalf("cached sibling import lost the family: %+v", members)
+			}
+			for weight, path := range map[int]string{500: mediumPath, 700: boldPath} {
+				index, ok := a.settings.Font.WeightFaces[weight]
+				if !ok || index < 0 || index >= len(members) || members[index].Path != path {
+					t.Fatalf("weight %d lost its source %s: pins=%v members=%+v", weight, path, a.settings.Font.WeightFaces, members)
+				}
+			}
+			wantSource := regularPath
+			if !matchWeights {
+				wantSource = boldPath
+			}
+			if a.settings.Font.Path != wantSource {
+				t.Fatalf("source=%s want=%s", a.settings.Font.Path, wantSource)
+			}
+			// Round-trip the resulting settings, then load the selected cached
+			// source as a fresh application does at startup.
+			// Re-enabling matching must not replace an explicitly selected Bold
+			// base on restart (synthetic pins are relative to that base).
+			if !matchWeights {
+				a.settings.MatchWeights = true
+			}
+			a.save()
+			saved, err := LoadSettings(a.settingsPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			b.info = FontInfo{Path: saved.Font.Path, Faces: []FontFace{regular}}
+			if !matchWeights {
+				b.info.Faces = []FontFace{bold}
+			}
+			restarted := testApp(t, b)
+			restarted.settings = saved
+			restarted.inspectFont(saved.Font.Path)
+			wait(restarted)
+			if !reflect.DeepEqual(restarted.settings.Font, saved.Font) {
+				t.Fatalf("restart lost cached family selections: got %+v want %+v", restarted.settings.Font, saved.Font)
+			}
+		})
+	}
+}

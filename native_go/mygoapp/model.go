@@ -239,19 +239,24 @@ func (a *application) inspectFont(path string) {
 					}
 				}
 			}
-			if reload && path == selectedPath && len(previous.Family) > 0 {
-				// Stored siblings are not beside the stored source; keep the saved family
-				// when restoring that cache. An explicit import of the original file
-				// instead refreshes the family from its current directory contents.
-				a.sourceFace = candidate(selectedPath, selected)
-				for _, member := range previous.Family {
-					if member.Path != selectedPath {
+			restoringCache := related && path == selectedPath
+			if restoringCache {
+				// Cached members live in separate folders. Restore the known family
+				// when loading any member, including its previous base. Importing an
+				// original file still discovers the current directory's members.
+				for _, member := range a.members() {
+					if member.Path != "" && member.Path != selectedPath {
 						a.siblings = append(a.siblings, member)
 					}
 				}
+			}
+			if reload && restoringCache && len(previous.Family) > 0 {
+				// Restoring the saved base keeps its exact identity, including when
+				// matching was enabled after explicitly selecting a heavier face.
+				a.sourceFace = candidate(selectedPath, selected)
 				a.settings.Font = FontSelection{Path: selectedPath, FaceIndex: selected.Index, Family: previous.Family, WeightFaces: previous.WeightFaces}
 			} else {
-				a.applyFamily(familyOf(selectedPath, info.Faces, info.Siblings, selected))
+				a.applyFamily(familyOf(selectedPath, info.Faces, a.siblings, selected))
 				if related {
 					a.settings.Font.WeightFaces = remapWeightFaces(previous, a.members())
 				}
