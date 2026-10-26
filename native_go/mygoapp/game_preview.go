@@ -49,10 +49,14 @@ func (a *application) loadGameFonts() {
 	}()
 }
 
+// selectGamePreview chooses the original game font the preview compares with.
 func (a *application) selectGamePreview(id string) {
 	a.gameFontID = id
-	if id != "" && a.settings.PreviewText == a.t("preview.sample") {
-		a.settings.PreviewText = "HELLDIVERS 2\nFOR SUPER EARTH! 0123456789"
-	}
+	a.compare = id != ""
 	a.changed(true)
 }
+
+// The sample is edited on one line; " / " stands for its line breaks.
+func flatSample(text string) string { return strings.ReplaceAll(text, "\n", " / ") }
+
+func sampleText(flat string) string { return strings.ReplaceAll(flat, " / ", "\n") }

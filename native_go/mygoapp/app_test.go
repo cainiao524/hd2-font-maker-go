@@ -29,6 +29,9 @@ func testApp(t *testing.T, backend Backend) *application {
 		if a.previewCancel != nil {
 			a.previewCancel()
 		}
+		if a.gamePreviewCancel != nil {
+			a.gamePreviewCancel()
+		}
 		close(a.closed)
 	})
 	return a
@@ -107,8 +110,8 @@ func TestFontInspectionAndPreview(t *testing.T) {
 	ink := 0
 	for y := 0; y < 240; y++ {
 		for x := 0; x < 700; x++ {
-			r, g, bb, _ := result.Image.At(x, y).RGBA()
-			if r < 20000 && g < 20000 && bb < 20000 {
+			r, g, _, _ := result.Image.At(x, y).RGBA()
+			if r > 40000 && g > 40000 {
 				ink++
 			}
 		}
@@ -311,7 +314,7 @@ func TestAllLocalesResponsive(t *testing.T) {
 				a.scroll.Y = 0
 				tt.Frame()
 			}
-			for _, key := range []string{"build", "cancel", "output.open", "ui.language"} {
+			for _, key := range []string{"build", "output.open", "ui.language"} {
 				r, ok := tt.Find(a.t(key))
 				if !ok || r.X < 0 || r.Y < 0 || r.X+r.W > float32(size.w)+1 || r.Y+r.H > float32(size.h)+1 {
 					t.Errorf("%s %dx%d %s clipped: %+v", locale.Code, size.w, size.h, key, r)
@@ -371,18 +374,11 @@ func TestReadinessThemeAndLists(t *testing.T) {
 		t.Fatalf("ready app still misses %v", missing)
 	}
 
-	tt.SetDark(true)
-	tt.Frame()
-	if a.theme == nil || !a.theme.Dark {
-		t.Fatal("theme does not follow the dark system appearance")
-	}
-	if output := os.Getenv("HD2_MYGO_SCREENSHOTS"); output != "" {
-		savePNG(t, filepath.Join(output, "en-dark.png"), tt.Image())
-	}
+	// The design is dark whatever the system appearance.
 	tt.SetDark(false)
 	tt.Frame()
-	if a.theme.Dark {
-		t.Fatal("theme does not return to the light appearance")
+	if a.theme == nil || !a.theme.Dark || a.theme.Accent != cYellow {
+		t.Fatal("theme does not keep the design's dark palette")
 	}
 
 	a.settings.Locale = "zh-TW"

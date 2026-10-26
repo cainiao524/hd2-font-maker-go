@@ -87,7 +87,7 @@ func TestLocalOriginalGameFonts(t *testing.T) {
 		for y := 0; y < 480; y++ {
 			for x := 0; x < 1000; x++ {
 				r, _, _, _ := result.Image.At(x, y).RGBA()
-				if r < 32768 {
+				if r > 32768 {
 					ink++
 				}
 			}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -16,6 +17,7 @@ import (
 
 type gamePreviewBackend struct {
 	recordingBackend
+	previewMu       sync.Mutex
 	previewRequests []PreviewRequest
 	failure         error
 }
@@ -28,7 +30,9 @@ func (b *gamePreviewBackend) GameFonts(ctx context.Context, folder string) ([]Ga
 }
 
 func (b *gamePreviewBackend) Preview(ctx context.Context, req PreviewRequest) (PreviewResult, error) {
+	b.previewMu.Lock()
 	b.previewRequests = append(b.previewRequests, req)
+	b.previewMu.Unlock()
 	return PreviewResult{Image: image.NewRGBA(image.Rect(0, 0, 1000, 480))}, ctx.Err()
 }
 
@@ -37,11 +41,20 @@ func TestSingleGamePreviewDoesNotChangeBuild(t *testing.T) {
 	a := readyApp(t, b)
 	before := a.settings.BuildRequest
 	a.loadGameFonts()
-	awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
-	if len(a.gameFonts) != 2 || a.gameFontID != "steelworks" || a.preview == nil {
+	awaitState(t, a, func() bool { return !a.busy && !a.previewBusy && !a.gamePreviewBusy })
+	if len(a.gameFonts) != 2 || a.gameFontID != "steelworks" || a.preview == nil || a.gamePreview == nil {
 		t.Fatal("original preset did not load")
 	}
-	req := b.previewRequests[len(b.previewRequests)-1]
+	// The custom and game previews run concurrently; completion order is not
+	// part of the contract, and both must have finished before inspecting them.
+	var req PreviewRequest
+	b.previewMu.Lock()
+	for _, candidate := range b.previewRequests {
+		if candidate.GameFontID == "steelworks" {
+			req = candidate
+		}
+	}
+	b.previewMu.Unlock()
 	if req.GameFolder != before.GameFolder || req.GameFontID != "steelworks" {
 		t.Fatalf("preview request: %+v", req)
 	}
@@ -58,7 +71,7 @@ func TestSingleGamePreviewDoesNotChangeBuild(t *testing.T) {
 	if err := tt.Click("FSSinclair"); err != nil {
 		t.Fatal(err)
 	}
-	awaitState(t, a, func() bool { return !a.previewBusy })
+	awaitState(t, a, func() bool { return !a.previewBusy && !a.gamePreviewBusy })
 	if a.gameFontID != "sinclair" {
 		t.Fatal("preset selection failed")
 	}
@@ -69,15 +82,15 @@ func TestSingleGamePreviewDoesNotChangeBuild(t *testing.T) {
 	if err := tt.Click(a.t("preview.custom")); err != nil {
 		t.Fatal(err)
 	}
-	awaitState(t, a, func() bool { return !a.previewBusy })
+	awaitState(t, a, func() bool { return !a.previewBusy && !a.gamePreviewBusy })
 	if a.gameFontID != "" || !reflect.DeepEqual(before, a.settings.BuildRequest) {
 		t.Fatal("custom preview changed generation settings")
 	}
 	a.selectGamePreview("steelworks")
-	awaitState(t, a, func() bool { return !a.previewBusy })
+	awaitState(t, a, func() bool { return !a.previewBusy && !a.gamePreviewBusy })
 	a.settings.GameFolder = filepath.Join(t.TempDir(), "different-game")
 	tt.Frame()
-	awaitState(t, a, func() bool { return !a.previewBusy })
+	awaitState(t, a, func() bool { return !a.previewBusy && !a.gamePreviewBusy })
 	if a.gameFontID != "" || len(a.gameFonts) != 0 {
 		t.Fatal("stale original font retained after changing game")
 	}

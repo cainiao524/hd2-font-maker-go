@@ -8,10 +8,11 @@ $vendorRoot = Join-Path $projectRoot 'vendor'
 if (!(Test-Path -LiteralPath $vendorRoot)) { $vendorRoot = Join-Path $nativeRoot 'vendor' }
 $env:GOPATH = Join-Path $cacheRoot '.toolchains/gopath'
 $env:GOCACHE = Join-Path $cacheRoot '.toolchains/gocache'
-$env:GOTMPDIR = $env:GOCACHE
+# Do not compound checkout depth in temporary paths used by native tests.
+$env:GOTMPDIR = [IO.Path]::GetTempPath()
 New-Item -ItemType Directory -Force -Path $env:GOPATH,$env:GOCACHE | Out-Null
 $env:GOTOOLCHAIN = 'local'
-if (!$Go) { $Go = Join-Path $projectRoot '.toolchains/go1.27.2/go/bin/go.exe' }
+if (!$Go) { $Go = Join-Path $projectRoot '.toolchains/go1.27.3/go/bin/go.exe' }
 if (!(Test-Path -LiteralPath $Go)) { $Go = (Get-Command go.exe -ErrorAction Stop).Source }
 $go = $Go
 $env:CGO_ENABLED = '0'
@@ -39,7 +40,7 @@ try {
         & $go vet . ./production ./cmd/hd2font-mygo
         if ($LASTEXITCODE) { throw 'MyGo static checks failed' }
     }
-    & $go build -trimpath -ldflags '-H=windowsgui' -o bin/HD2FontMaker.exe ./cmd/hd2font-mygo
+    & $go build -trimpath -buildvcs=false -ldflags '-H=windowsgui' -o bin/HD2FontMaker.exe ./cmd/hd2font-mygo
     if ($LASTEXITCODE) { throw 'MyGo build failed' }
 } finally {
     Pop-Location

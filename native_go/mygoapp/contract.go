@@ -17,6 +17,24 @@ type FontFace struct {
 	Index int        `json:"index"`
 	Name  string     `json:"name"`
 	Axes  []AxisInfo `json:"axes,omitempty"`
+	// Style is the face's family, weight, width and slope for weight matching.
+	Style FaceStyle `json:"style"`
+}
+
+type FaceStyle struct {
+	Family    string `json:"family"`
+	Subfamily string `json:"subfamily"`
+	Weight    int    `json:"weight"`
+	Width     int    `json:"width"`
+	Italic    bool   `json:"italic"`
+}
+
+// FamilyFace is a face of another file that may join the selected face's family.
+type FamilyFace struct {
+	Path      string    `json:"path"`
+	FaceIndex int       `json:"face_index"`
+	Name      string    `json:"name"`
+	Style     FaceStyle `json:"style"`
 }
 
 type AxisInfo struct {
@@ -32,6 +50,9 @@ type AxisInfo struct {
 type FontInfo struct {
 	Path  string
 	Faces []FontFace
+	// Siblings are faces of other font files beside Path, already stored like
+	// Path, whose family matches one of Faces.
+	Siblings []FamilyFace
 }
 
 type FontSelection struct {
@@ -40,6 +61,10 @@ type FontSelection struct {
 	// Axes are OpenType design coordinates, shared by preview and generation.
 	// Missing values mean the font's own defaults.
 	Axes map[string]float32 `json:"axes,omitempty"`
+	// Family lists the other static faces of the selected face's family, and
+	// WeightFaces pins weight rows (see pipeline.Options).
+	Family      []FamilyFace `json:"family,omitempty"`
+	WeightFaces map[int]int  `json:"weight_faces,omitempty"`
 }
 
 type BuildRequest struct {
@@ -51,6 +76,9 @@ type BuildRequest struct {
 	ProcessOutlines bool     `json:"process_outlines"`
 	IncludeSymbols  bool     `json:"include_symbols"`
 	OutputZIP       string   `json:"output_zip"`
+	// ModName is the package name mod managers show; it also derives the
+	// package GUID, so differently named packages can be kept side by side.
+	ModName string `json:"mod_name"`
 }
 
 type PreviewRequest struct {
@@ -58,8 +86,11 @@ type PreviewRequest struct {
 	Text            string
 	MatchWeights    bool
 	ProcessOutlines bool
-	Width           int
-	Height          int
+	// Weight is the game weight row to preview (400, 500 or 700); zero keeps
+	// the bold preview MatchWeights has always shown.
+	Weight int
+	Width  int
+	Height int
 	// GameFontID selects an original game face for preview only.
 	GameFolder string
 	GameFontID string

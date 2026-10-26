@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"image"
-	"image/color"
 	"image/draw"
 	"os"
 
@@ -42,12 +41,12 @@ func renderVariablePreview(ctx context.Context, req PreviewRequest) (PreviewResu
 	face.SetVariations(variations)
 	w, h := max(320, req.Width), max(160, req.Height)
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.Draw(img, img.Bounds(), image.NewUniform(color.RGBA{246, 247, 249, 255}), image.Point{}, draw.Src)
+	draw.Draw(img, img.Bounds(), image.NewUniform(previewPaper), image.Point{}, draw.Src)
 	scale := float32(40) / float32(face.Upem())
 	extents, _ := face.FontHExtents()
 	lineHeight := (extents.Ascender-extents.Descender+extents.LineGap)*scale + 14
 	x, y := float32(24), 24+extents.Ascender*scale
-	ink := image.NewUniform(color.RGBA{28, 33, 39, 255})
+	ink := image.NewUniform(previewInk)
 	raster := vector.NewRasterizer(w, h)
 	missing := 0
 	for _, ch := range req.Text {

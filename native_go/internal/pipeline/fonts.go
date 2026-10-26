@@ -22,7 +22,12 @@ func mainTextGroup(group string) bool {
 	return false
 }
 
-func fallbackKey(original, custom *inventory.Face) string {
+// fallbackKey names a fallback list: one per custom face, and in family mode
+// one per target weight too, since family siblings are ordered by distance to it.
+func (s *buildState) fallbackKey(original, custom *inventory.Face) string {
+	if len(s.family) > 1 {
+		return fmt.Sprintf("%s@%d", custom.Digest, original.Weight)
+	}
 	return custom.Digest
 }
 
@@ -32,6 +37,10 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 		axes               map[string]float32
 		weight             int
 		prepare, emphasize bool
+		// source is the family face used for this weight; emphasis is the
+		// weight passed to Style when that face still needs emboldening.
+		source   *inventory.Face
+		emphasis int
 	}
 	var wght *axis
 	for i := range axes {
@@ -54,6 +63,13 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 			}
 			r.axes["wght"] = max(wght.Min, min(wght.Max, value+float32(r.weight-400)))
 			r.prepare = true
+		} else if s.options.MatchWeights && len(s.family) > 1 {
+			r.source, r.emphasis = s.pickFace(r.weight)
+			r.method = "family_face"
+			if r.emphasis > 0 {
+				r.emphasize = true
+				r.method = "family_synthetic_emphasis"
+			}
 		} else if s.options.MatchWeights && r.weight > 400 {
 			r.emphasize = true
 			r.method = "synthetic_emphasis"
@@ -61,6 +77,9 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 		r.key = jobKey(r.axes, r.prepare, r.emphasize, pixelGrid, s.options.ProcessOutlines)
 		if r.emphasize {
 			r.key = jobKey(r.key, r.weight)
+		}
+		if r.source != nil {
+			r.key = jobKey(r.key, r.source.Digest, r.emphasis, s.familyPixel[r.source.Digest])
 		}
 		requests[i] = r
 		if _, ok := indices[r.key]; ok {
@@ -73,8 +92,12 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 			switch {
 			case r.prepare:
 				data, err = s.ops.Prepare(ctx, raw, uint32(s.options.FaceIndex), r.axes, s.options.ProcessOutlines)
+			case r.emphasize && r.source != nil:
+				data, err = s.ops.Style(ctx, r.source.Data, r.emphasis, s.familyPixel[r.source.Digest], s.options.ProcessOutlines)
 			case r.emphasize:
 				data, err = s.ops.Style(ctx, s.base.Data, r.weight, pixelGrid, s.options.ProcessOutlines)
+			case r.source != nil:
+				return r.source, nil
 			default:
 				return s.base, nil
 			}
@@ -85,7 +108,11 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 			if err != nil {
 				return nil, err
 			}
-			if err = hasCoverage(face, s.base.Chars, "weight styling"); err != nil {
+			required := s.base.Chars
+			if r.source != nil {
+				required = r.source.Chars
+			}
+			if err = hasCoverage(face, required, "weight styling"); err != nil {
 				return nil, err
 			}
 			return face, nil
@@ -105,13 +132,13 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 		r := requests[i]
 		face := results[indices[r.key]]
 		s.styled[original.Digest] = face
-		styleWeight[fallbackKey(original, face)] = r.weight
+		styleWeight[s.fallbackKey(original, face)] = r.weight
 		s.report.StyleAdaptation = append(s.report.StyleAdaptation, StyleReport{r.weight, r.method, r.axes, mode, s.options.ProcessOutlines, pixelGrid, face.Digest, face.Name, original.Name, original.Digest, original.Group})
 	}
 	chinese := append(append([]*inventory.Face{}, s.inv.Groups["sc"]...), s.inv.Groups["tc"]...)
 	seen := make(map[string]map[string]bool)
 	for _, original := range s.templates {
-		digest := fallbackKey(original, s.styled[original.Digest])
+		digest := s.fallbackKey(original, s.styled[original.Digest])
 		if seen[digest] == nil {
 			seen[digest] = make(map[string]bool)
 		}
@@ -130,6 +157,17 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 		sort.SliceStable(sources, func(i, j int) bool {
 			return distance(int(sources[i].Weight), styleWeight[digest]) < distance(int(sources[j].Weight), styleWeight[digest])
 		})
+	}
+	// Glyphs a family face lacks come from its siblings before the game's.
+	prefixed := make(map[string]bool)
+	for i, original := range s.templates {
+		r := requests[i]
+		digest := s.fallbackKey(original, s.styled[original.Digest])
+		if r.source == nil || prefixed[digest] {
+			continue
+		}
+		prefixed[digest] = true
+		s.fallbacks[digest] = append(s.familyFallbacks(r.source, r.weight), s.fallbacks[digest]...)
 	}
 	return nil
 }
@@ -153,7 +191,7 @@ func (s *buildState) fonts() error {
 	var mergeJobs []func(context.Context) (mergeResult, error)
 	for _, original := range s.templates {
 		custom := s.styled[original.Digest]
-		fallbacks := s.fallbacks[fallbackKey(original, custom)]
+		fallbacks := s.fallbacks[s.fallbackKey(original, custom)]
 		ids := make([]string, len(fallbacks))
 		for i, f := range fallbacks {
 			ids[i] = f.Digest

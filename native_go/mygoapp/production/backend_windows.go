@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 
 	"hd2font/native/internal/fontcore"
@@ -117,6 +118,9 @@ func (b *Backend) InspectFont(ctx context.Context, path string) (mygoapp.FontInf
 		return mygoapp.FontInfo{}, err
 	}
 	info.Path = stored
+	if info.Siblings, err = familySiblings(ctx, b.userData, path, info.Faces); err != nil {
+		return mygoapp.FontInfo{}, err
+	}
 	return info, nil
 }
 
@@ -168,6 +172,20 @@ func (b *Backend) Generate(ctx context.Context, req mygoapp.BuildRequest, progre
 	if err != nil {
 		return mygoapp.BuildResult{}, err
 	}
+	// Only weight-matched static sources use family files. Variable sources
+	// use their own axes, even if saved settings still contain siblings.
+	var family []pipeline.FontFace
+	if req.MatchWeights && len(req.Font.Family) > 0 {
+		axes, err := fontcore.VariableAxes(data, req.Font.FaceIndex)
+		if err != nil {
+			return mygoapp.BuildResult{}, err
+		}
+		if len(axes) == 0 {
+			if family, err = b.storedFamily(ctx, req.Font.Family); err != nil {
+				return mygoapp.BuildResult{}, err
+			}
+		}
+	}
 	data = nil
 	if progress == nil {
 		progress = func(mygoapp.Progress) {}
@@ -197,7 +215,12 @@ func (b *Backend) Generate(ctx context.Context, req mygoapp.BuildRequest, progre
 	opts.BinDir = b.binDir
 	opts.WorkDir = filepath.Join(b.userData, "Work")
 	opts.AtlasExecutable = filepath.Join(b.binDir, "vendor", "msdf-atlas-gen", "msdf-atlas-gen.exe")
-	opts.Name = "HD2 Custom Fonts"
+	opts.Family = family
+	opts.WeightFaces = maps.Clone(req.Font.WeightFaces)
+	opts.Name = strings.TrimSpace(req.ModName)
+	if opts.Name == "" {
+		opts.Name = "HD2 Custom Fonts"
+	}
 	report, err := b.deps.build(ctx, inv, opts, func(s string) { progress(progressMessage(s, "working")) })
 	if err != nil {
 		return mygoapp.BuildResult{}, err
@@ -235,4 +258,25 @@ func (b *Backend) build(ctx context.Context, inv *inventory.Inventory, opts pipe
 	}
 	defer processor.Close()
 	return pipeline.Build(ctx, inv, processor, opts, progress)
+}
+
+// storedFamily verifies each family face's stored copy, as Generate does for
+// the selected font, and returns the paths the pipeline reads.
+func (b *Backend) storedFamily(ctx context.Context, faces []mygoapp.FamilyFace) ([]pipeline.FontFace, error) {
+	var out []pipeline.FontFace
+	for _, face := range faces {
+		data, err := readSource(ctx, face.Path)
+		if err != nil {
+			return nil, err
+		}
+		if err := verifyStoredSource(b.userData, face.Path, data); err != nil {
+			return nil, err
+		}
+		stored, err := storeFont(ctx, b.userData, face.Path, data)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, pipeline.FontFace{Path: stored, FaceIndex: face.FaceIndex})
+	}
+	return out, nil
 }

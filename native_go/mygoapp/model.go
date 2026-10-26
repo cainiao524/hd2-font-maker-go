@@ -52,6 +52,31 @@ type application struct {
 	// notice is a catalog key shown once as a toast by the next frame.
 	notice   string
 	dragOver bool
+	// facesPath is the stored file faces describes; siblings are same-family
+	// faces of other files found beside it at import, and sourceFace is the
+	// family member the selection uses as its source.
+	facesPath   string
+	siblings    []FamilyFace
+	sourceFace  FamilyFace
+	lastAutoMod string
+	// compare shows the game font beside the custom one, split at split (%);
+	// previewWeight is the weight row the preview draws.
+	compare           bool
+	split             float32
+	previewWeight     int
+	sampleDraft       string
+	gamePreview       *ui.Bitmap
+	gamePreviewBusy   bool
+	gamePreviewSerial uint64
+	gamePreviewCancel context.CancelFunc
+	manualWeights     bool
+	// done keeps the completion panel until settings change; generating marks
+	// a build, as distinct from imports and scans that also set busy.
+	done        bool
+	generating  bool
+	lastBytes   int64
+	lastElapsed time.Duration
+	heroWidth   float32
 }
 
 func newApplication(opts Options) (*application, error) {
@@ -79,8 +104,9 @@ func newApplication(opts Options) (*application, error) {
 	a := &application{settings: s, settingsPath: path, backend: opts.Backend,
 		canGenerate: opts.Backend != nil, demo: opts.Demo, fontDraft: s.Font.Path,
 		events: make(chan func(), 32), progressEvents: make(chan Progress, 1), closed: make(chan struct{}),
-		statusKey: "status.initial", theme: ui.LightTheme(),
+		statusKey: "status.initial", theme: ui.DarkTheme(), split: 52, previewWeight: 400,
 	}
+	a.sampleDraft = flatSample(s.PreviewText)
 	if a.backend == nil {
 		a.backend = FontPreviewBackend{}
 	}
@@ -131,6 +157,7 @@ progress:
 
 func (a *application) changed(preview bool) {
 	a.dirtyAt = time.Now()
+	a.done = false
 	if preview {
 		a.requestPreview()
 	}
@@ -187,29 +214,46 @@ func (a *application) inspectFont(path string) {
 				return
 			}
 			previous := a.settings.Font
-			a.faces = info.Faces
 			selectedPath := info.Path
 			if selectedPath == "" {
 				selectedPath = path
 			}
-			a.settings.Font = FontSelection{Path: selectedPath, FaceIndex: info.Faces[0].Index}
-			if previous.Path == path || previous.Path == selectedPath {
+			a.faces, a.facesPath, a.siblings = info.Faces, selectedPath, info.Siblings
+			reload := previous.Path == path || previous.Path == selectedPath
+			selected := info.Faces[0]
+			if reload {
 				for _, face := range info.Faces {
 					if face.Index == previous.FaceIndex {
-						a.settings.Font.FaceIndex = face.Index
+						selected = face
 					}
 				}
 			}
+			if reload && len(previous.Family) > 0 {
+				// Stored siblings are not beside the stored source; keep the saved family
+				// and offer its other files again when another face is selected.
+				a.sourceFace = candidate(selectedPath, selected)
+				for _, member := range previous.Family {
+					if member.Path != selectedPath {
+						a.siblings = append(a.siblings, member)
+					}
+				}
+				a.settings.Font = FontSelection{Path: selectedPath, FaceIndex: selected.Index, Family: previous.Family, WeightFaces: previous.WeightFaces}
+			} else {
+				a.applyFamily(familyOf(selectedPath, info.Faces, info.Siblings, selected))
+			}
+			a.settings.Font.Axes = nil
 			for _, face := range info.Faces {
-				if face.Index == a.settings.Font.FaceIndex {
+				if a.settings.Font.Path == selectedPath && face.Index == a.settings.Font.FaceIndex {
 					a.faceName = faceLabel(face)
 					var saved map[string]float32
-					if (previous.Path == path || previous.Path == selectedPath) && previous.FaceIndex == face.Index {
+					if reload && previous.FaceIndex == face.Index {
 						saved = previous.Axes
 					}
 					a.settings.Font.Axes = axisValues(face, saved)
 				}
 			}
+			a.updateModName()
+			selectedPath = a.settings.Font.Path
 			a.fontDraft = selectedPath
 			a.statusKey = "status.imported"
 			a.gameFontID = ""
@@ -222,6 +266,7 @@ func faceLabel(face FontFace) string { return fmt.Sprintf("%d  %s", face.Index+1
 
 func (a *application) requestPreview() {
 	a.previewDirtyAt = time.Time{}
+	a.requestGamePreview()
 	if a.previewCancel != nil {
 		a.previewCancel()
 	}
@@ -229,17 +274,19 @@ func (a *application) requestPreview() {
 	serial := a.previewSerial
 	a.preview = nil
 	a.previewBusy, a.previewMissing = false, 0
-	if a.gameFontID == "" && (a.settings.Font.Path == "" || len(a.faces) == 0) {
+	if a.settings.Font.Path == "" || len(a.faces) == 0 {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.previewCancel, a.previewBusy = cancel, true
 	req := PreviewRequest{Font: a.settings.Font, Text: a.settings.PreviewText,
 		MatchWeights: a.settings.MatchWeights, ProcessOutlines: a.settings.ProcessOutlines, Width: 1000, Height: 480}
-	if a.gameFontID != "" {
-		req.GameFolder, req.GameFontID = a.settings.GameFolder, a.gameFontID
+	if req.MatchWeights {
+		req.Weight = a.previewWeight
 	}
 	req.Font.Axes = maps.Clone(req.Font.Axes)
+	req.Font.Family = slices.Clone(req.Font.Family)
+	req.Font.WeightFaces = maps.Clone(req.Font.WeightFaces)
 	go func() {
 		defer cancel()
 		result, err := a.backend.Preview(ctx, req)
@@ -263,6 +310,44 @@ func (a *application) requestPreview() {
 	}()
 }
 
+// requestGamePreview renders the chosen original game font for comparison.
+func (a *application) requestGamePreview() {
+	if a.gamePreviewCancel != nil {
+		a.gamePreviewCancel()
+	}
+	a.gamePreviewSerial++
+	serial := a.gamePreviewSerial
+	a.gamePreview, a.gamePreviewBusy = nil, false
+	if a.compare && a.gameFontID == "" && len(a.gameFonts) > 0 {
+		a.gameFontID = a.gameFonts[0].ID
+	}
+	if a.gameFontID == "" || (!a.compare && len(a.faces) > 0) {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	a.gamePreviewCancel, a.gamePreviewBusy = cancel, true
+	req := PreviewRequest{Text: a.settings.PreviewText, GameFolder: a.settings.GameFolder, GameFontID: a.gameFontID, Width: 1000, Height: 480}
+	go func() {
+		defer cancel()
+		result, err := a.backend.Preview(ctx, req)
+		a.post(func() {
+			if serial != a.gamePreviewSerial {
+				return
+			}
+			a.gamePreviewBusy, a.gamePreviewCancel = false, nil
+			if err != nil {
+				if !errors.Is(err, context.Canceled) {
+					a.setError("error.font_read", err)
+				}
+				return
+			}
+			if result.Image != nil {
+				a.gamePreview = ui.NewBitmap(result.Image)
+			}
+		})
+	}()
+}
+
 func (a *application) generate() {
 	if a.busy || !a.canGenerate {
 		return
@@ -274,12 +359,14 @@ func (a *application) generate() {
 	req := a.settings.BuildRequest
 	req.Languages = slices.Clone(req.Languages)
 	req.Font.Axes = maps.Clone(req.Font.Axes)
+	req.Font.Family = slices.Clone(req.Font.Family)
+	req.Font.WeightFaces = maps.Clone(req.Font.WeightFaces)
 	if key := ValidateRequest(req); key != "" {
 		a.setError(key, nil)
 		return
 	}
 	a.save()
-	a.busy, a.cancelling = true, false
+	a.busy, a.cancelling, a.generating, a.done = true, false, true, false
 	a.errorKey, a.errorDetail = "", ""
 	a.progress = Progress{Stage: "source", Fraction: -1}
 	a.started = time.Now()
@@ -305,7 +392,7 @@ func (a *application) generate() {
 			}
 		})
 		a.post(func() {
-			a.busy, a.cancelling, a.cancel = false, false, nil
+			a.busy, a.cancelling, a.cancel, a.generating = false, false, nil, false
 			if errors.Is(err, context.Canceled) {
 				a.statusKey = "native.cancelled"
 				return
@@ -324,10 +411,12 @@ func (a *application) generate() {
 				return
 			}
 			a.settings.LastOutput = result.OutputZIP
+			a.lastBytes, a.lastElapsed = result.Bytes, time.Since(a.started)
 			a.progress = Progress{Stage: "done", Fraction: 1}
 			a.statusKey = "status.complete"
 			a.notice = "stage.done"
 			a.save()
+			a.done = true
 		})
 	}()
 }
@@ -405,7 +494,7 @@ func Run(opts Options) error {
 			h = 860
 		}
 		a.window = mygo.NewWindow(mygo.WindowOptions{Title: a.t("app.title") + " " + Version, Width: w, Height: h,
-			MinWidth: 540, MinHeight: 480, Content: ui.View(a.view)})
+			MinWidth: 540, MinHeight: 520, Content: ui.View(a.view)})
 		a.wake = a.window.Invalidate
 		// The window keeps the default icon if the PNG cannot be used.
 		_ = a.window.SetIcon(appIcon)
@@ -416,6 +505,9 @@ func Run(opts Options) error {
 			}
 			if a.previewCancel != nil {
 				a.previewCancel()
+			}
+			if a.gamePreviewCancel != nil {
+				a.gamePreviewCancel()
 			}
 			a.save()
 		})

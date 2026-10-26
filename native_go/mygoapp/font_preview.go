@@ -23,6 +23,12 @@ var ErrBackendUnavailable = errors.New("native generation backend is not connect
 // for the standalone UI. Generation requires an injected production Backend.
 type FontPreviewBackend struct{}
 
+// Previews are drawn as the game draws text: light ink on the dark interface.
+var (
+	previewPaper = color.RGBA{12, 13, 15, 255}
+	previewInk   = color.RGBA{255, 225, 26, 255}
+)
+
 func fontCollection(ctx context.Context, path string) (*sfnt.Collection, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -91,8 +97,8 @@ func (FontPreviewBackend) Preview(ctx context.Context, req PreviewRequest) (Prev
 	defer face.Close()
 	w, h := max(320, req.Width), max(160, req.Height)
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.Draw(img, img.Bounds(), image.NewUniform(color.RGBA{246, 247, 249, 255}), image.Point{}, draw.Src)
-	d := font.Drawer{Dst: img, Src: image.NewUniform(color.RGBA{28, 33, 39, 255}), Face: face}
+	draw.Draw(img, img.Bounds(), image.NewUniform(previewPaper), image.Point{}, draw.Src)
+	d := font.Drawer{Dst: img, Src: image.NewUniform(previewInk), Face: face}
 	lineHeight := face.Metrics().Height.Ceil() + 14
 	x, y := 24, 24+face.Metrics().Ascent.Ceil()
 	missing := 0

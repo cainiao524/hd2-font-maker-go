@@ -22,11 +22,25 @@ type Options struct {
 	WorkDir         string
 	Name            string
 	// Workers is the number of independent build jobs, 1 through MaxWorkers.
-	Workers         int
+	Workers int
 	// ZIPLevel accepts 0..9; DefaultOptions selects fast, lossless level 1.
 	ZIPLevel int
 	// AtlasExecutable overrides the bundled native msdf-atlas-gen path.
 	AtlasExecutable string
+	// Family lists other static faces of the source's family. With
+	// MatchWeights each game weight uses the closest face (inventory.PickWeight)
+	// and missing glyphs come from the other faces before the game's. Empty
+	// keeps the single-source path; variable fonts ignore it.
+	Family []FontFace
+	// WeightFaces pins the face of a weight row (inventory.WeightRow): 0 is the
+	// source, 1.. index Family, and -1 asks for synthetic emphasis of the source.
+	WeightFaces map[int]int
+}
+
+// FontFace names one face of a font file or collection.
+type FontFace struct {
+	Path      string
+	FaceIndex int
 }
 
 // MaxWorkers bounds independent build jobs; each job also runs threads of its own.
@@ -144,6 +158,8 @@ type Report struct {
 	Output                     string                `json:"output,omitempty"`
 	ZIPSHA256                  string                `json:"zip_sha256,omitempty"`
 	ZIPBytes                   int64                 `json:"zip_bytes,omitempty"`
+	// FamilyFaces names the source and its family faces when Family was used.
+	FamilyFaces []string `json:"family_faces,omitempty"`
 }
 
 // The only product implementation is nativeOps. This private boundary lets

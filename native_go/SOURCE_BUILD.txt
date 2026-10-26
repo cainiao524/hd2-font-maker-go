@@ -1,19 +1,35 @@
-HD2 Font Maker 2.0.0 native source
+HD2 Font Maker 2.1.0 native source
 ====================================
 
-The current engine is pinned to frontend 1.3.0 / engine 1.3.7 behavior.
-Despite its version number, 2.0.0 keeps this 1.3.7 engine behavior; it is
-independent of the historical 1.4/1.5 experiments.
+The single-source engine retains the 2.0.0 behavior based on frontend 1.3.0 /
+engine 1.3.7. Version 2.1.0 adds a separate multi-face family path, a redesigned
+interface and custom mod names. It is independent of the historical 1.4/1.5
+experiments.
 
 This directory is the hd2font/native Go module. mygoapp is a second module,
 hd2font/native/mygoapp, using a local replace directive for the engine.
 
-Build on Windows x64 with Go 1.27.2 or a compatible newer toolchain:
+Build on Windows x64 with Go 1.27.3 (the toolchain verified for this version):
   .\mygoapp\build.ps1 -Go 'C:\Program Files\Go\bin\go.exe' -Test
 
 The GUI executable is mygoapp/bin/HD2FontMaker.exe. The script copies the native
 DLLs and atlas executable to the expected relative locations. No Python runtime
 is used by the application or needed for a normal Go rebuild.
+
+From the repository root, test all modules with test.ps1 and create local
+Windows/source ZIPs with package.ps1. Both accept -Go '<path-to-go.exe>'.
+package.ps1 runs the complete test/build first unless -SkipBuild is supplied.
+Packaging requires a Git checkout; the extracted source ZIP can be tested and
+rebuilt without Git. Builds omit checkout-specific VCS metadata and use trimmed
+paths. Temporary build/test files use the system temp directory, avoiding the
+native atlas helper's legacy path limit in deeply nested source checkouts.
+
+The Windows icon and version resource are checked in as
+mygoapp/cmd/hd2font-mygo/rsrc_windows_amd64.syso. To regenerate them after
+editing mygoapp/winres.json, install github.com/tc-hib/go-winres@v0.3.3, then
+run from mygoapp:
+  go-winres make --in winres.json --arch amd64 --out cmd/hd2font-mygo/rsrc
+Normal source rebuilds use the checked-in resource and do not need this tool.
 
 Optional native-library rebuilds require MSVC x64 build tools and CMake:
 - scripts/build-harfbuzz.ps1 downloads and verifies the pinned HarfBuzz archive,

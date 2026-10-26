@@ -118,7 +118,11 @@ func (f *Face) Codepoints() []rune {
 	return chars
 }
 
-func fontName(data []byte) (string, error) {
+func fontName(data []byte) (string, error) { return nameRecord(data, 4, 1) }
+
+// nameRecord returns the first name of ids found, preferring English Windows
+// and then Mac Roman records, as fontName always has.
+func nameRecord(data []byte, ids ...uint16) (string, error) {
 	if len(data) < 6 {
 		return "", fmt.Errorf("missing or truncated font name table")
 	}
@@ -126,7 +130,7 @@ func fontName(data []byte) (string, error) {
 	if 6+12*count > len(data) || storage > len(data) {
 		return "", fmt.Errorf("truncated font name records")
 	}
-	for _, id := range []uint16{4, 1} {
+	for _, id := range ids {
 		var last, macEnglish string
 		for i := 0; i < count; i++ {
 			r := data[6+12*i:]

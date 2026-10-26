@@ -11,7 +11,7 @@ import (
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
-const Version = "2.0.0"
+const Version = "2.1.0"
 
 func readFontAxes(path string) ([][]AxisInfo, error) {
 	f, err := os.Open(path)
@@ -58,16 +58,27 @@ func axisValues(face FontFace, saved map[string]float32) map[string]float32 {
 	return values
 }
 
+// selectFace starts the selection from another face of the imported file,
+// with that face's family.
 func (a *application) selectFace(face FontFace) {
-	a.settings.Font.FaceIndex = face.Index
-	a.settings.Font.Axes = axisValues(face, nil)
+	path := a.facesPath
+	if path == "" {
+		path = a.settings.Font.Path
+	}
+	a.applyFamily(familyOf(path, a.faces, a.siblings, face))
+	a.settings.Font.Axes = nil
+	if a.settings.Font.Path == path && a.settings.Font.FaceIndex == face.Index {
+		a.settings.Font.Axes = axisValues(face, nil)
+	}
 	a.faceName = faceLabel(face)
+	a.fontDraft = a.settings.Font.Path
+	a.updateModName()
 	a.changed(true)
 }
 
 func (a *application) axesView(c *ui.Context) {
 	for _, face := range a.faces {
-		if face.Index != a.settings.Font.FaceIndex || len(face.Axes) == 0 {
+		if !a.isSource(face) || len(face.Axes) == 0 {
 			continue
 		}
 		ui.Column(c.Key("axes")).Gap(8).Children(func() {

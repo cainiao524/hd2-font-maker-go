@@ -8,7 +8,7 @@ import (
 )
 
 func TestV13PortSurface(t *testing.T) {
-	if Version != "2.0.0" {
+	if Version != "2.1.0" {
 		t.Fatalf("version = %q", Version)
 	}
 	if !slices.Equal(gameLanguages, []string{"sc", "tc", "latin", "jp", "ko"}) {
@@ -29,7 +29,10 @@ func TestV13PortSurface(t *testing.T) {
 
 	a := readyApp(t, &recordingBackend{requests: make(chan BuildRequest, 1)})
 	tt := ui.NewTester(a.view, 1140, 1000)
-	if err := tt.Click(a.t("preset.latin")); err != nil {
+	if err := tt.Click(a.t("preset.none")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(a.t("group.latin")); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(a.settings.Languages, []string{"latin"}) {

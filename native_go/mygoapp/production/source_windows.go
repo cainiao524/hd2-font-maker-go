@@ -67,7 +67,11 @@ func inspectData(ctx context.Context, data []byte, path string) (mygoapp.FontInf
 		if err != nil {
 			return mygoapp.FontInfo{}, err
 		}
-		face := mygoapp.FontFace{Index: index, Name: metadata.Name}
+		style, err := inventory.DescribeStyle(data, index)
+		if err != nil {
+			return mygoapp.FontInfo{}, err
+		}
+		face := mygoapp.FontFace{Index: index, Name: metadata.Name, Style: faceStyle(style)}
 		for _, axis := range axes {
 			face.Axes = append(face.Axes, mygoapp.AxisInfo{Tag: axis.Tag, Name: axis.Tag, Min: axis.Min, Default: axis.Default, Max: axis.Max})
 		}

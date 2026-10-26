@@ -5,7 +5,9 @@ $env:GOTOOLCHAIN='local'
 $env:CGO_ENABLED='0'
 $env:GOPATH=Join-Path $PSScriptRoot '.toolchains\gopath'
 $env:GOCACHE=Join-Path $PSScriptRoot '.toolchains\gocache'
-$env:GOTMPDIR=$env:GOCACHE
+# Native atlas dependencies use legacy Windows file APIs. Keeping temporary
+# test paths out of a deeply nested checkout avoids exceeding their path limit.
+$env:GOTMPDIR=[IO.Path]::GetTempPath()
 $env:HD2_NATIVE_PIPELINE_TEST='1'
 New-Item -ItemType Directory -Force -Path $env:GOPATH,$env:GOCACHE|Out-Null
 Push-Location (Join-Path $PSScriptRoot 'native_go')

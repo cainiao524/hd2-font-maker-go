@@ -119,7 +119,7 @@ func TestV13BuildUsesExactScopeAndFallbackSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Version != "2.0.0" || report.EngineProfile != "python-1.3.7-parity-v1" {
+	if report.Version != "2.1.0" || report.EngineProfile != "python-1.3.7-parity-v1" {
 		t.Fatalf("wrong product profile: %s / %s", report.Version, report.EngineProfile)
 	}
 	coverage := coverageByGroup(report)
@@ -220,7 +220,7 @@ func TestV13AtlasKeysAndSourcesFollowReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Version != "2.0.0" || report.EngineProfile != "python-1.3.7-parity-v1" {
+	if report.Version != "2.1.0" || report.EngineProfile != "python-1.3.7-parity-v1" {
 		t.Fatalf("wrong 1.3 product profile: %s / %s", report.Version, report.EngineProfile)
 	}
 	chinese, err := chineseUIKit(inv)

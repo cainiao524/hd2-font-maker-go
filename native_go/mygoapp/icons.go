@@ -12,7 +12,7 @@ var iconFiles embed.FS
 
 var icons = func() map[string]*ui.SVG {
 	out := map[string]*ui.SVG{}
-	for _, name := range []string{"folder-open", "file-type", "refresh-cw", "archive", "folder", "x", "rotate-ccw", "gamepad-2"} {
+	for _, name := range []string{"folder-open", "file-type", "refresh-cw", "archive", "folder", "x", "rotate-ccw", "gamepad-2", "check", "plus", "columns-2"} {
 		data, err := iconFiles.ReadFile("icons/" + name + ".svg")
 		if err != nil {
 			panic(err)

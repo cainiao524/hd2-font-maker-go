@@ -41,6 +41,8 @@ type buildState struct {
 	atlasUses    []inventory.AtlasSelection
 	changes      map[string][]archiveio.Resource
 	changed      map[string]*inventory.Resource
+	family       []*inventory.Face // base first, then the prepared Options.Family faces
+	familyPixel  map[string]bool   // each family face's pixel-grid mode, by digest
 }
 
 func build(ctx context.Context, inv *inventory.Inventory, ops fontOps, options Options, progress func(string), generate atlasGenerator) (*Report, error) {
@@ -104,7 +106,7 @@ func build(ctx context.Context, inv *inventory.Inventory, ops fontOps, options O
 	}
 	defer os.RemoveAll(work)
 	s := &buildState{ctx: ctx, inv: inv, ops: ops, options: options, progress: progress, work: work, styled: make(map[string]*inventory.Face), fallbacks: make(map[string][]*inventory.Face), replacements: make(map[string]replacement), changes: make(map[string][]archiveio.Resource), changed: make(map[string]*inventory.Resource)}
-	s.report = &Report{Tool: "HD2 Font Mod Generator", Version: "2.0.0", EngineProfile: "python-1.3.7-parity-v1", CreatedAt: time.Now().UTC().Format(time.RFC3339), Name: options.Name, Selections: []SelectionReport{}, Resources: []ResourceReport{}, Atlases: []AtlasReport{}, RuntimeSlots: []RuntimeReport{}, StyleAdaptation: []StyleReport{}, FontReadback: []FontVerification{}, FullReplacement: true, NoesisFamilyStylePreserved: true, Files: make(map[string]FileReport), Performance: map[string]any{"package_cache_hit": false, "cache_hits": 0, "cache_misses": 0, "style_workers": options.Workers, "merge_workers": options.Workers, "format_workers": options.Workers, "atlas_workers": options.Workers}, LosslessCompression: map[string]any{"cff_profiles": []any{}, "zip_deflate_level": options.ZIPLevel, "texture_bytes_unchanged": true, "resource_offset_aliasing": false}, Note: "Font resources and packaging verified offline; in-game rendering has not been verified. Fallback glyphs do not add game translations."}
+	s.report = &Report{Tool: "HD2 Font Mod Generator", Version: "2.1.0", EngineProfile: "python-1.3.7-parity-v1", CreatedAt: time.Now().UTC().Format(time.RFC3339), Name: options.Name, Selections: []SelectionReport{}, Resources: []ResourceReport{}, Atlases: []AtlasReport{}, RuntimeSlots: []RuntimeReport{}, StyleAdaptation: []StyleReport{}, FontReadback: []FontVerification{}, FullReplacement: true, NoesisFamilyStylePreserved: true, Files: make(map[string]FileReport), Performance: map[string]any{"package_cache_hit": false, "cache_hits": 0, "cache_misses": 0, "style_workers": options.Workers, "merge_workers": options.Workers, "format_workers": options.Workers, "atlas_workers": options.Workers}, LosslessCompression: map[string]any{"cff_profiles": []any{}, "zip_deflate_level": options.ZIPLevel, "texture_bytes_unchanged": true, "resource_offset_aliasing": false}, Note: "Font resources and packaging verified offline; in-game rendering has not been verified. Fallback glyphs do not add game translations."}
 	s.report.Performance["glyph_pipeline"] = "python-1.3.7-parity-v1"
 	progress("Preparing selected font")
 	raw, err := os.ReadFile(options.FontPath)
@@ -142,7 +144,19 @@ func build(ctx context.Context, inv *inventory.Inventory, ops fontOps, options O
 	if err = hasCoverage(s.base, sourceFace.Chars, "preparation"); err != nil {
 		return nil, err
 	}
-	s.selected, s.report.Coverage, err = inventory.LanguagePlan(inv, s.base, options.FontPath, options.FaceIndex, options.Languages, options.IncludeSymbols)
+	if len(options.Family) > 0 && len(axes) == 0 && options.MatchWeights {
+		if err = s.prepareFamily(pixelGrid); err != nil {
+			return nil, err
+		}
+	}
+	planned := s.base
+	if len(s.family) > 1 {
+		// A group only a sibling covers is still the custom family's to draw.
+		union := *s.base
+		union.Chars = unionFaces(s.family...)
+		planned = &union
+	}
+	s.selected, s.report.Coverage, err = inventory.LanguagePlan(inv, planned, options.FontPath, options.FaceIndex, options.Languages, options.IncludeSymbols)
 	if err != nil {
 		return nil, err
 	}
