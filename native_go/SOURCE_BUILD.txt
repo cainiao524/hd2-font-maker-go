@@ -1,4 +1,4 @@
-HD2 Font Maker 2.1.0 native source
+HD2 Font Maker 2.1.2 native source
 ====================================
 
 The single-source engine retains the 2.0.0 behavior based on frontend 1.3.0 /

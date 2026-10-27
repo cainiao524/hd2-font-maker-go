@@ -388,7 +388,7 @@ func (a *application) generate() {
 	a.save()
 	a.busy, a.cancelling, a.generating, a.done = true, false, true, false
 	a.errorKey, a.errorDetail = "", ""
-	a.progress = Progress{Stage: "source", Fraction: -1}
+	a.progress = Progress{Stage: "scan", Fraction: 0}
 	a.started = time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel

@@ -190,7 +190,8 @@ func (b *Backend) Generate(ctx context.Context, req mygoapp.BuildRequest, progre
 	if progress == nil {
 		progress = func(mygoapp.Progress) {}
 	}
-	progress(mygoapp.Progress{Stage: "scan", Fraction: -1})
+	progress = overallProgress(progress)
+	progress(mygoapp.Progress{Stage: "scan", Fraction: 0})
 	inv, err := b.deps.scan(ctx, req.GameFolder, func(s string) { progress(progressMessage(s, "scan")) })
 	if err != nil {
 		return mygoapp.BuildResult{}, err
