@@ -41,6 +41,7 @@
   "weight.auto": "Automatisch",
   "weight.native": "Original",
   "weight.synthetic": "Künstlich fett",
+  "weight.synthetic_thin": "Künstlich dünner",
   "weight.variable": "Variabel wght {value}",
   "preview.title": "Schriftvorschau",
   "preview.font": "Vorschauschrift",

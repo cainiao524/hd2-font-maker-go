@@ -41,6 +41,7 @@
   "weight.auto": "Automatico",
   "weight.native": "Nativo",
   "weight.synthetic": "Grassetto sintetico",
+  "weight.synthetic_thin": "Assottigliamento sintetico",
   "weight.variable": "Variabile wght {value}",
   "preview.title": "Anteprima del font",
   "preview.font": "Font di anteprima",

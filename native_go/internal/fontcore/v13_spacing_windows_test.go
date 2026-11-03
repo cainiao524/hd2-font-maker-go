@@ -26,7 +26,7 @@ func TestV13WeightKeepsAuthoredSpacingAndShaping(t *testing.T) {
 		before, _ := sfntio.Parse(base, 0)
 		for _, weight := range []int{500, 700} {
 			t.Run(fmt.Sprintf("outlines=%v/weight=%d", outlines, weight), func(t *testing.T) {
-				styled, err := p.Style(ctx, base, weight, false, outlines)
+				styled, _, err := p.Style(ctx, base, weight, false, outlines)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -81,5 +81,44 @@ func TestV13AtlasFallbackRetainsSmallOriginalUPM(t *testing.T) {
 		if !outlines && !bytes.Equal(data, out) {
 			t.Fatal("raw donor outlines changed")
 		}
+	}
+}
+
+func TestThinningKeepsAdvancesAndChangesInk(t *testing.T) {
+	p := processor(t)
+	ctx := context.Background()
+	base, err := p.Prepare(ctx, readTest(t, "testdata/layout.ttf"), 0, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thinned, fallbacks, err := p.Style(ctx, base, 300, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := sfntio.Parse(base, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := sfntio.Parse(thinned, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bm, _ := fontMetrics(before)
+	am, _ := fontMetrics(after)
+	if !reflect.DeepEqual(bm.advances, am.advances) {
+		t.Fatal("thinning changed authored advances")
+	}
+	if !bytes.Equal(before.Tables["hhea"][4:10], after.Tables["hhea"][4:10]) {
+		t.Fatal("thinning changed authored line metrics")
+	}
+	for _, features := range [][]string{{"liga=0", "kern=0"}, {"liga=1", "kern=1"}} {
+		want := shape(t, p, base, "AV", features...)
+		got := shape(t, p, thinned, "AV", features...)
+		if !reflect.DeepEqual(want, got) {
+			t.Fatalf("thinning changed shaping: %v != %v", got, want)
+		}
+	}
+	if bytes.Equal(before.Tables["glyf"], after.Tables["glyf"]) {
+		t.Fatalf("no outline changed (%d fallbacks); rebuild hd2skia.dll so negative radius erodes", fallbacks)
 	}
 }

@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"encoding/binary"
+	"math"
 	"strings"
 
 	"hd2font/native/internal/sfntio"
@@ -118,6 +119,71 @@ func WeightRow(weight int) int {
 		return 500
 	}
 	return 700
+}
+
+// SingleFontAnchor is the design weight a lone static face stands in for.
+// A missing, zero, out-of-range, or Regular (400) usWeightClass becomes
+// Medium (500): a typical single-file import declares Regular even when the
+// user wants that drawing in the medium slot. Any other class in 1..1000 is
+// kept, so a lone Bold (700) or Light (300) stays what it says it is.
+func SingleFontAnchor(declared int) int {
+	if declared < 1 || declared > 1000 || declared == 400 {
+		return 500
+	}
+	return declared
+}
+
+// SingleFontEmphasis decides how one game weight is drawn from a lone static
+// face. pins may be nil. A pin of 0 draws that only face unchanged; a pin of
+// -1 forces synthesis; any other pin is ignored and the anchor is used.
+// emphasis is the value to pass to synthetic styling, measured from 400 so the
+// existing bold curve is unchanged, or 0 when the outline is used as drawn.
+// method is authored_static, synthetic_emphasis, or synthetic_reduction.
+func SingleFontEmphasis(declared, target int, pins map[int]int) (emphasis int, method string) {
+	anchor := SingleFontAnchor(declared)
+	if pins != nil {
+		if pin, ok := pins[WeightRow(target)]; ok && pin == 0 {
+			return 0, "authored_static"
+		}
+	}
+	if target == anchor {
+		return 0, "authored_static"
+	}
+	emphasis = 400 + target - anchor
+	if target < anchor {
+		return emphasis, "synthetic_reduction"
+	}
+	return emphasis, "synthetic_emphasis"
+}
+
+// EmphasisRadius is the signed outline offset, in font units, for a synthetic
+// weight measured from 400. Positive values expand with the 1.3 curve, capped
+// at 2.25% of UPM. Negative values erode at 0.50% of UPM per 100 classes and
+// are capped at 0.50% of UPM, so the medium-to-regular step is half a percent
+// of the em and a larger gap is not cut any deeper.
+func EmphasisRadius(upm float64, weight int, pixelGrid bool) float64 {
+	if upm <= 0 {
+		return 0
+	}
+	delta := float64(weight - 400)
+	var radius float64
+	switch {
+	case delta > 0:
+		radius = math.RoundToEven(upm * math.Min(0.0225, delta*0.000075))
+	case delta < 0:
+		radius = -math.RoundToEven(upm * math.Min(0.005, -delta*0.00005))
+	default:
+		return 0
+	}
+	if !pixelGrid || radius == 0 {
+		return radius
+	}
+	sign := 1.0
+	if radius < 0 {
+		sign = -1
+		radius = -radius
+	}
+	return sign * math.Max(1, math.RoundToEven(radius/4)) * 4
 }
 
 // PickFace chooses the face of weights (the source first) that a target

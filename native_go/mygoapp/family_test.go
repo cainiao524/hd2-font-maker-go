@@ -94,12 +94,29 @@ func TestFamilyRowsLabelsAndRebuilds(t *testing.T) {
 	a := readyApp(t, &recordingBackend{requests: make(chan BuildRequest, 1), release: make(chan struct{})})
 	bold := FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}
 	a.sourceFace = FamilyFace{Path: a.settings.Font.Path, FaceIndex: 2, Name: "Pixel Bold", Style: bold}
-	// A lone font keeps the 2.0 rule: every row above 400 is emboldened.
+	kinds := map[int]string{}
 	for _, row := range a.weightRows() {
-		if (row.Target > 400) != (row.Kind == "synthetic") {
-			t.Errorf("single-font row %d is %s", row.Target, row.Kind)
+		kinds[row.Target] = row.Kind
+	}
+	if kinds[400] != "reduction" || kinds[500] != "reduction" || kinds[700] != "native" {
+		t.Fatalf("lone bold rows: %+v", a.weightRows())
+	}
+	a.sourceFace.Style.Weight = 400
+	kinds = map[int]string{}
+	for _, row := range a.weightRows() {
+		kinds[row.Target] = row.Kind
+	}
+	if kinds[400] != "reduction" || kinds[500] != "native" || kinds[700] != "synthetic" {
+		t.Fatalf("lone regular rows: %+v", a.weightRows())
+	}
+	a.settings.Font.WeightFaces = map[int]int{700: 0}
+	for _, row := range a.weightRows() {
+		if row.Target == 700 && row.Kind != "native" {
+			t.Fatalf("pinning the only face still synthesized 700: %+v", row)
 		}
 	}
+	a.settings.Font.WeightFaces = nil
+	a.sourceFace.Style = bold
 	a.settings.Font.Family = []FamilyFace{{Path: "cjk/pixel-bold.ttf", Name: "Pixel Bold", Style: bold}}
 	labels := a.memberLabels()
 	if labels[0] == labels[1] {

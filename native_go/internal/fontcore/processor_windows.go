@@ -6,9 +6,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"hd2font/native/internal/geometry"
 	"hd2font/native/internal/harfbuzz"
@@ -169,38 +169,45 @@ func (p *Processor) Prepare(ctx context.Context, data []byte, index uint32, axes
 	}
 	return raw, nil
 }
-func (p *Processor) Style(ctx context.Context, data []byte, weight int, pixelGrid, outlines bool) ([]byte, error) {
-	if weight <= 400 {
-		return data, ctx.Err()
+func (p *Processor) Style(ctx context.Context, data []byte, weight int, pixelGrid, outlines bool) ([]byte, int, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
+	}
+	if weight == 400 {
+		return data, 0, nil
 	}
 	f, err := sfntio.Parse(data, 0)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	m, err := fontMetrics(f)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	radius := math.RoundToEven(float64(m.upm) * math.Min(.0225, float64(weight-400)*.000075))
-	if pixelGrid {
-		radius = math.Max(1, math.RoundToEven(radius/4)) * 4
-	}
+	radius := inventory.EmphasisRadius(float64(m.upm), weight, pixelGrid)
 	if radius == 0 {
-		return data, nil
+		return data, 0, nil
 	}
-	result, err := p.transform(ctx, data, transformOptions{ttf: m.ttf, upm: m.upm, radius: float32(radius), pixel: pixelGrid, clean: outlines})
+	var fallbacks atomic.Int32
+	result, err := p.transform(ctx, data, transformOptions{ttf: m.ttf, upm: m.upm, radius: float32(radius), pixel: pixelGrid, clean: outlines, fallbacks: &fallbacks})
 	if err != nil {
-		return nil, err
+		return nil, int(fallbacks.Load()), err
 	}
 	f, err = sfntio.Parse(result, 0)
 	if err != nil {
-		return nil, err
+		return nil, int(fallbacks.Load()), err
 	}
 	if len(f.Tables["OS/2"]) >= 6 {
-		binary.BigEndian.PutUint16(f.Tables["OS/2"][4:], uint16(weight))
+		recorded := weight
+		if recorded < 1 {
+			recorded = 1
+		} else if recorded > 1000 {
+			recorded = 1000
+		}
+		binary.BigEndian.PutUint16(f.Tables["OS/2"][4:], uint16(recorded))
 	}
-
-	return f.Bytes()
+	out, err := f.Bytes()
+	return out, int(fallbacks.Load()), err
 }
 
 // PrepareAtlasFallback follows atlas.py's original-font path. A donor keeps

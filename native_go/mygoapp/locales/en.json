@@ -41,6 +41,7 @@
   "weight.auto": "Automatic",
   "weight.native": "Own face",
   "weight.synthetic": "Synthetic bold",
+  "weight.synthetic_thin": "Synthetic thinning",
   "weight.variable": "Variable wght {value}",
   "preview.title": "Font preview",
   "preview.font": "Preview font",

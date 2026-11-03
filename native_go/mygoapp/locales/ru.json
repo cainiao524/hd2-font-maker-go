@@ -41,6 +41,7 @@
   "weight.auto": "Автоматически",
   "weight.native": "Родной",
   "weight.synthetic": "Искусств. жирный",
+  "weight.synthetic_thin": "Искусств. тонкий",
   "weight.variable": "Вариативный wght {value}",
   "preview.title": "Предпросмотр шрифта",
   "preview.font": "Шрифт предпросмотра",

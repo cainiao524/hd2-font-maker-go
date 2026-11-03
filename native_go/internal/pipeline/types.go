@@ -30,7 +30,8 @@ type Options struct {
 	// Family lists other static faces of the source's family. With
 	// MatchWeights each game weight uses the closest face (inventory.PickWeight)
 	// and missing glyphs come from the other faces before the game's. Empty
-	// keeps the single-source path; variable fonts ignore it.
+	// keeps the single-source path (inventory.SingleFontEmphasis); variable
+	// fonts ignore it.
 	Family []FontFace
 	// WeightFaces pins the face of a weight row (inventory.WeightRow): 0 is the
 	// source, 1.. index Family, and -1 asks for synthetic emphasis of the source.
@@ -68,17 +69,18 @@ type SelectionReport struct {
 }
 
 type StyleReport struct {
-	TargetWeight    int                `json:"target_weight"`
-	Method          string             `json:"method"`
-	Axes            map[string]float32 `json:"axes"`
-	Mode            string             `json:"mode"`
-	ProcessOutlines bool               `json:"process_outlines"`
-	PixelGrid       bool               `json:"pixel_grid"`
-	SourceSHA256    string             `json:"source_sha256"`
-	SourceName      string             `json:"source_name"`
-	OriginalName    string             `json:"original_name"`
-	OriginalSHA256  string             `json:"original_sha256"`
-	Group           string             `json:"group"`
+	TargetWeight       int                `json:"target_weight"`
+	Method             string             `json:"method"`
+	Axes               map[string]float32 `json:"axes"`
+	Mode               string             `json:"mode"`
+	ProcessOutlines    bool               `json:"process_outlines"`
+	PixelGrid          bool               `json:"pixel_grid"`
+	SourceSHA256       string             `json:"source_sha256"`
+	SourceName         string             `json:"source_name"`
+	OriginalName       string             `json:"original_name"`
+	OriginalSHA256     string             `json:"original_sha256"`
+	Group              string             `json:"group"`
+	SyntheticFallbacks int                `json:"synthetic_fallbacks,omitempty"`
 }
 
 type ResourceReport struct {
@@ -167,7 +169,7 @@ type Report struct {
 type fontOps interface {
 	Prepare(context.Context, []byte, uint32, map[string]float32, bool) ([]byte, error)
 	PrepareAtlasFallback(context.Context, []byte, bool) ([]byte, error)
-	Style(context.Context, []byte, int, bool, bool) ([]byte, error)
+	Style(context.Context, []byte, int, bool, bool) ([]byte, int, error)
 	Merge(context.Context, []byte, [][]byte) ([]byte, error)
 	Conform(context.Context, []byte, bool, uint16, []byte, bool) ([]byte, [3]float32, error)
 	Register([]byte, []byte) ([]byte, error)

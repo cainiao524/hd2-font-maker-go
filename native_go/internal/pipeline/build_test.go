@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"hd2font/native/internal/archiveio"
 	"hd2font/native/internal/atlas"
 	"hd2font/native/internal/inventory"
+	"hd2font/native/internal/sfntio"
 )
 
 func zipContents(t *testing.T, path string) map[string][]byte {
@@ -80,13 +82,20 @@ func TestCompleteBuildScopesSlotsCoverageAndAtlases(t *testing.T) {
 	if len(report.Atlases) != 3 || len(generator.calls) != 2 {
 		t.Fatalf("atlas dedupe: %d uses/%d jobs", len(report.Atlases), len(generator.calls))
 	}
-	if len(ops.styles) != 2 {
-		t.Fatalf("style dedupe: %d", len(ops.styles))
+	if len(ops.styles) != 1 || ops.styles[0].weight != 600 {
+		t.Fatalf("single regular should only embolden 700 as Style(600): %+v", ops.styles)
 	}
 	for _, style := range ops.styles {
 		if !style.pixel || style.outlines {
 			t.Fatal("raw 256 UPM pixel-grid or outline flag lost")
 		}
+	}
+	methods := map[int]string{}
+	for _, row := range report.StyleAdaptation {
+		methods[row.TargetWeight] = row.Method
+	}
+	if methods[500] != "authored_static" || methods[700] != "synthetic_emphasis" {
+		t.Fatalf("single-font rows: %v", methods)
 	}
 	files := zipContents(t, options.OutputZIP)
 	for name := range files {
@@ -261,5 +270,87 @@ func TestMissingNonAtlasCompanionRejected(t *testing.T) {
 	}
 	if _, err := build(context.Background(), inv, &fakeOps{}, options, nil, (&fakeAtlas{}).generate); err == nil {
 		t.Fatal("unavailable non-atlas companion fabricated")
+	}
+}
+
+func styleMethods(report *Report) map[int]string {
+	out := map[int]string{}
+	for _, row := range report.StyleAdaptation {
+		out[row.TargetWeight] = row.Method
+	}
+	return out
+}
+
+func styleWeights(ops *fakeOps) map[int]bool {
+	out := map[int]bool{}
+	for _, style := range ops.styles {
+		out[style.weight] = true
+	}
+	return out
+}
+
+func TestSingleFontThinsRegularAndModeratesBold(t *testing.T) {
+	inv, options := pipelineFixture(t)
+	options.Languages = []string{"sc", "tc"}
+	ops := &fakeOps{}
+	report, err := build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := styleWeights(ops)
+	if got[500] || got[700] || !got[300] || !got[600] {
+		t.Fatalf("regular anchor styles: %+v", ops.styles)
+	}
+	methods := styleMethods(report)
+	if methods[400] != "synthetic_reduction" || methods[500] != "authored_static" || methods[700] != "synthetic_emphasis" {
+		t.Fatalf("regular anchor methods: %v", methods)
+	}
+
+	options.WeightFaces = map[int]int{700: 0, 400: 0}
+	ops = &fakeOps{}
+	report, err = build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ops.styles) != 0 {
+		t.Fatalf("pinned single face still synthesized: %+v", ops.styles)
+	}
+	methods = styleMethods(report)
+	if methods[400] != "authored_static" || methods[700] != "authored_static" {
+		t.Fatalf("pins ignored: %v", methods)
+	}
+}
+
+func TestSingleBoldFontStaysBold(t *testing.T) {
+	inv, options := pipelineFixture(t)
+	options.Languages = []string{"sc", "tc"}
+	raw, err := os.ReadFile(options.FontPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := sfntio.Parse(raw, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary.BigEndian.PutUint16(parsed.Tables["OS/2"][4:], 700)
+	rewritten, err := parsed.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(options.FontPath, rewritten, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ops := &fakeOps{}
+	report, err := build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := styleWeights(ops)
+	if got[700] || !got[100] || !got[200] {
+		t.Fatalf("bold anchor styles: %+v", ops.styles)
+	}
+	methods := styleMethods(report)
+	if methods[400] != "synthetic_reduction" || methods[500] != "synthetic_reduction" || methods[700] != "authored_static" {
+		t.Fatalf("bold anchor methods: %v", methods)
 	}
 }

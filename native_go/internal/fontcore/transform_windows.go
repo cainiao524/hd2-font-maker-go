@@ -9,6 +9,8 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"sync/atomic"
+
 	"hd2font/native/internal/cffconv"
 	"hd2font/native/internal/geometry"
 	"hd2font/native/internal/outlinecleanup"
@@ -23,6 +25,8 @@ type transformOptions struct {
 	radius                 float32
 	pixel, simplify, clean bool
 	fractional             bool
+	// fallbacks counts glyphs whose erosion was rejected. Nil for expansion.
+	fallbacks *atomic.Int32
 }
 
 func rawScale(f *sfntio.Font, m *metrics, upm uint16) error {
@@ -163,15 +167,81 @@ func (p *Processor) transform(ctx context.Context, data []byte, o transformOptio
 			}
 		}
 		before := path
-		if o.radius > 0 || o.simplify {
+		applied := false
+		if o.radius < 0 {
+			next, procErr := p.Geometry.Process(path, geometry.Options{Radius: o.radius, PixelGrid: o.pixel, Clockwise: m.ttf, Simplify: o.simplify})
+			if procErr != nil || !geometry.ErosionKept(before, next) {
+				if geometry.ContourCount(before) > 0 && o.fallbacks != nil {
+					o.fallbacks.Add(1)
+				}
+				if o.simplify {
+					next, procErr = p.Geometry.Process(before, geometry.Options{PixelGrid: o.pixel, Clockwise: m.ttf, Simplify: true})
+					if procErr != nil {
+						return procErr
+					}
+					path = next
+				}
+			} else {
+				path = next
+				applied = true
+			}
+		} else if o.radius > 0 || o.simplify {
 			path, err = p.Geometry.Process(path, geometry.Options{Radius: o.radius, PixelGrid: o.pixel, Clockwise: m.ttf, Simplify: o.simplify})
 			if err != nil {
 				return err
 			}
+			applied = o.radius > 0
 		}
-		changed := o.radius > 0 || (o.simplify && !geometry.EqualContours(before, path))
+		changed := applied || (o.simplify && !geometry.EqualContours(before, path))
 		if !changed {
 			path = before
+		}
+		// A failed erosion keeps this glyph's original drawing and never fails the font.
+		fallbackGlyph := func() error {
+			if geometry.ContourCount(before) > 0 && o.fallbacks != nil {
+				o.fallbacks.Add(1)
+			}
+			if o.ttf && m.ttf {
+				raw := f.Tables["glyf"][m.offsets[id]:m.offsets[id+1]]
+				scaled, scaleErr := sfntio.ScaleGlyphData(raw, 1)
+				if scaleErr != nil {
+					return scaleErr
+				}
+				g := storedGlyph(scaled)
+				glyphs[id], bounds[id], nonempty[id], preserved[id] = g, g.Bounds, g.Contours > 0, true
+				return nil
+			}
+			if o.ttf {
+				g, glyphErr := quadratic.Glyph(before, float64(o.upm)/1000, true)
+				if glyphErr != nil {
+					return glyphErr
+				}
+				glyphs[id], bounds[id], nonempty[id], preserved[id] = g, g.Bounds, g.Contours > 0, false
+				return nil
+			}
+			var cs []byte
+			var encErr error
+			if o.fractional {
+				cs, encErr = cffconv.EncodeFractional(before, advances[id])
+			} else {
+				cs, encErr = cffconv.Encode(before, advances[id], m.ttf)
+			}
+			if encErr != nil {
+				return encErr
+			}
+			strings[id] = cs
+			encoded, encErr := cffconv.DecodeLiteral(cs)
+			if encErr != nil {
+				return encErr
+			}
+			bounds[id], nonempty[id] = pathBounds(encoded)
+			return nil
+		}
+		bail := func(err error) error {
+			if err != nil && applied && o.radius < 0 {
+				return fallbackGlyph()
+			}
+			return err
 		}
 		if o.ttf {
 			var g sfntio.Glyph
@@ -179,19 +249,19 @@ func (p *Processor) transform(ctx context.Context, data []byte, o transformOptio
 			if !m.ttf {
 				g, err = quadratic.Glyph(path, float64(o.upm)/1000, true)
 				if err != nil {
-					return err
+					return bail(err)
 				}
 			} else if kept {
 				raw := f.Tables["glyf"][m.offsets[id]:m.offsets[id+1]]
 				raw, err = sfntio.ScaleGlyphData(raw, 1)
 				if err != nil {
-					return err
+					return bail(err)
 				}
 				g = storedGlyph(raw)
 			} else {
 				g, err = sfntio.EncodeGlyph(path)
 				if err != nil {
-					return err
+					return bail(err)
 				}
 				if m.ttf && changed && g.Contours != 0 {
 					bearings[id] = g.Bounds[0]
@@ -202,22 +272,22 @@ func (p *Processor) transform(ctx context.Context, data []byte, o transformOptio
 				if int16(g.Contours) >= 0 {
 					encoded, err = sfntio.DecodeGlyph(g.Data)
 					if err != nil {
-						return err
+						return bail(err)
 					}
 					translate(encoded, float32(int(bearings[id])-int(g.Bounds[0])))
 				}
 				clean, err := outlinecleanup.Clean(encoded)
 				if err != nil {
-					return err
+					return bail(err)
 				}
 				if !slices.Equal(clean, geometry.ClosedSegments(encoded)) {
 					g, err = sfntio.EncodeGlyphExplicit(clean)
 					if err != nil {
-						return err
+						return bail(err)
 					}
 					g, err = cleanEncoded(g)
 					if err != nil {
-						return err
+						return bail(err)
 					}
 					kept = false
 					if g.Contours != 0 {
@@ -238,42 +308,45 @@ func (p *Processor) transform(ctx context.Context, data []byte, o transformOptio
 				cs, err = cffconv.Encode(path, advances[id], m.ttf)
 			}
 			if err != nil {
-				return err
+				return bail(err)
 			}
 			if o.clean {
 				for attempt := 0; attempt < 8; attempt++ {
 					encoded, err := cffconv.DecodeLiteral(cs)
 					if err != nil {
-						return err
+						return bail(err)
 					}
 					clean, err := outlinecleanup.Clean(encoded)
 					if err != nil {
-						return err
+						return bail(err)
 					}
 					if slices.Equal(clean, geometry.ClosedSegments(encoded)) {
 						break
 					}
 					next, err := cffconv.Encode(clean, advances[id], false)
 					if err != nil {
-						return err
+						return bail(err)
 					}
 					if bytes.Equal(cs, next) {
 						break
 					}
 					cs = next
 					if attempt == 7 {
-						return fmt.Errorf("CFF outline did not stabilize after eight passes")
+						return bail(fmt.Errorf("CFF outline did not stabilize after eight passes"))
 					}
 				}
 			}
 			strings[id] = cs
 			encoded, err := cffconv.DecodeLiteral(cs)
 			if err != nil {
-				return err
+				return bail(err)
 			}
 			bounds[id], nonempty[id] = pathBounds(encoded)
 		}
-		if o.radius > 0 && len(before) > 0 {
+		if applied && o.radius != 0 && len(before) > 0 {
+			// Positive radius shifts the left bearing out by the expansion.
+			// Negative radius shifts it in by the erosion. Truncation matches
+			// the historical positive path, whose radius is already integral.
 			bearings[id] -= int16(o.radius)
 		}
 		return nil

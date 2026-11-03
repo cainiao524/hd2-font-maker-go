@@ -8,7 +8,7 @@ import (
 )
 
 func TestV13PortSurface(t *testing.T) {
-	if Version != "2.1.2" {
+	if Version != "2.2.0" {
 		t.Fatalf("version = %q", Version)
 	}
 	if !slices.Equal(gameLanguages, []string{"sc", "tc", "latin", "jp", "ko"}) {
@@ -21,6 +21,9 @@ func TestV13PortSurface(t *testing.T) {
 		messages := catalogs[locale.Code]
 		if messages["scope.mainGroups"] == "" {
 			t.Errorf("%s lacks the main-group explanation", locale.Code)
+		}
+		if messages["weight.synthetic_thin"] == "" {
+			t.Errorf("%s lacks synthetic thinning", locale.Code)
 		}
 		if _, old := messages["scope.supplemental"]; old {
 			t.Errorf("%s retains the superseded supplemental-scope explanation", locale.Code)

@@ -41,6 +41,7 @@
   "weight.auto": "Automatique",
   "weight.native": "Graisse native",
   "weight.synthetic": "Gras synthétique",
+  "weight.synthetic_thin": "Affinement synthétique",
   "weight.variable": "Variable wght {value}",
   "preview.title": "Aperçu de la police",
   "preview.font": "Police d’aperçu",

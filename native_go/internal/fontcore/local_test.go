@@ -41,7 +41,7 @@ func TestLocalPreparedFont(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, w := range []int{500, 700} {
-			out, err := p.Style(context.Background(), result, w, m.upm < 1000, true)
+			out, _, err := p.Style(context.Background(), result, w, m.upm < 1000, true)
 			if err != nil {
 				t.Fatal(err)
 			}

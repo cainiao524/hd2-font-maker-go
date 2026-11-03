@@ -68,10 +68,8 @@ func (b *Backend) preview(ctx context.Context, data []byte, req mygoapp.PreviewR
 		var index int
 		index, emphasis = inventory.PickFace(weights, req.Font.WeightFaces, target)
 		if len(weights) == 1 {
-			emphasis = 0
-			if target > 400 {
-				emphasis = target
-			}
+			emphasis, _ = inventory.SingleFontEmphasis(int(weights[0]), target, req.Font.WeightFaces)
+			index = 0
 		}
 		if len(weights) > 1 {
 			members := append([]mygoapp.FamilyFace{{Path: req.Font.Path, FaceIndex: req.Font.FaceIndex, Style: mygoapp.FaceStyle{Weight: int(style.Weight)}}}, req.Font.Family...)
@@ -159,7 +157,7 @@ func (b *Backend) preview(ctx context.Context, data []byte, req mygoapp.PreviewR
 		return mygoapp.PreviewResult{}, err
 	}
 	if emphasis > 0 {
-		prepared, err = processor.Style(ctx, prepared, emphasis, pixelGrid, req.ProcessOutlines)
+		prepared, _, err = processor.Style(ctx, prepared, emphasis, pixelGrid, req.ProcessOutlines)
 		if err != nil {
 			return mygoapp.PreviewResult{}, err
 		}

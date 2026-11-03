@@ -1,0 +1,38 @@
+HD2 Font Maker 2.2.0 验证记录
+
+本记录只覆盖这次能在当前环境执行的检查。它不是游戏内验证，也不代替 2.1.2 的真实资源生成记录。
+
+改动
+- 单个静态字体在字重匹配开启时用 OS/2 usWeightClass 做锚点。
+  未声明、0、超出 1–1000，或 Regular（400）锚定为 500。
+  其他 1–1000 的声明值（例如单独的 700）保持原值。
+- 与锚点相同的槽原样。更重的槽沿用原加粗曲线（500→700 为 Style(600)，1.50% UPM）。
+  更轻的槽内缩，每 100 字重 0.50% UPM，上限 0.50% UPM（1000 UPM 时每侧 5 单位）。
+- 内缩失败、丢轮廓或面积低于原来的 40% 时，该字退回原轮廓。
+  不中止 ZIP。次数在 style_adaptation.synthetic_fallbacks
+  和 performance.synthetic_fallbacks。
+- 字宽、kerning 和行高仍不因合成字重改变。
+- 同族路径和可变字体轴未改。
+- 单字体输出有意不再与 2.0.0 / 2.1.x 逐字节一致。
+
+已在 Linux 上执行
+- Go 1.27.1（由 go.mod 拉取；宿主是 1.22.2）运行非 Windows 包测试，
+  包括新的锚点、半径、内缩回退判定，以及流水线假引擎上的单字体用例。
+- go vet 覆盖这些包。
+- GOOS=windows GOARCH=amd64 交叉编译引擎、测试二进制和 HD2FontMaker.exe。
+  这些 PE 没有在本机运行。
+
+未执行，需要 Windows
+- 用 scripts/build-skia.ps1 重编 hd2skia.dll。仓库里的 bin/hd2skia.dll
+  仍拒绝负半径。不重编时，变细请求会逐字回退，轮廓不变，生成仍能完成。
+  命令（在 native_go 下，需 MSVC x64）：
+  .\scripts\build-skia.ps1 -SkiaDll bin\skia.dll -SkiaRoot <skia-pathops 0.9.2 的 Skia 头文件目录>
+  源码包 SHA-256 见 SOURCE_BUILD.txt。然后把新的 hd2skia.dll 放到 EXE 旁，
+  替换 native_go/bin/hd2skia.dll。
+- 重编后运行 .\test.ps1。其中 geometry 的负半径测试和
+  fontcore.TestThinningKeepsAdvancesAndChangesInk 会在旧 DLL 上失败。
+- 用 go-winres v0.3.3 根据 mygoapp/winres.json 重新生成
+  mygoapp/cmd/hd2font-mygo/rsrc_windows_amd64.syso，否则 EXE 文件版本仍是
+  已签入资源里的旧版本，package.ps1 的版本检查不会通过。
+- 真实字体生成、离线回读和游戏内 400/500/700 三档显示（含小字号和 mip）未做。
+- 合成加粗的 code 2 中止问题未修。
