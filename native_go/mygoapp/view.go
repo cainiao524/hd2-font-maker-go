@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"hd2font/native/internal/inventory"
 )
 
 var gameLanguages = []string{"sc", "tc", "latin", "jp", "ko"}
@@ -627,7 +628,13 @@ func (a *application) weightSources(c *ui.Context) {
 				ui.Text(c, "←").FontSize(13).TextColor(cDim)
 				if a.manualWeights && row.Kind != "variable" {
 					options := append([]string{a.t("weight.auto")}, a.memberLabels()...)
-					options = append(options, a.t("weight.synthetic"))
+					synthetic := a.t("weight.synthetic")
+					if len(members) == 1 {
+						if _, method := inventory.SingleFontEmphasis(members[0].Style.Weight, row.Target, map[int]int{row.Target: -1}); method == "synthetic_reduction" {
+							synthetic = a.t("weight.synthetic_thin")
+						}
+					}
+					options = append(options, synthetic)
 					selected := options[0]
 					if pin, ok := a.settings.Font.WeightFaces[row.Target]; ok {
 						if pin == -1 {
@@ -643,7 +650,7 @@ func (a *application) weightSources(c *ui.Context) {
 				}
 				ui.Text(c, row.Source).FontSize(12).TextColor(ui.RGB(217, 217, 210)).SingleLine().Grow(1).MinWidth(0)
 				border, ink := ui.RGB(74, 75, 82), cSoft
-				if row.Kind == "synthetic" {
+				if row.Kind == "synthetic" || row.Kind == "reduction" {
 					border, ink = cWarnLine, cWarn
 				}
 				ui.Text(c, row.Badge).FontSize(11).TextColor(ink).Padding(3, 6).Border(1, border).SingleLine().Shrink(0)

@@ -239,7 +239,7 @@ func (f *fakeOps) Prepare(ctx context.Context, data []byte, index uint32, axes m
 func (f *fakeOps) PrepareAtlasFallback(ctx context.Context, data []byte, outlines bool) ([]byte, error) {
 	return data, ctx.Err()
 }
-func (f *fakeOps) Style(ctx context.Context, data []byte, weight int, pixel, outlines bool) ([]byte, error) {
+func (f *fakeOps) Style(ctx context.Context, data []byte, weight int, pixel, outlines bool) ([]byte, int, error) {
 	f.mu.Lock()
 	f.styles = append(f.styles, struct {
 		weight          int
@@ -248,10 +248,17 @@ func (f *fakeOps) Style(ctx context.Context, data []byte, weight int, pixel, out
 	f.mu.Unlock()
 	p, err := sfntio.Parse(data, 0)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	binary.BigEndian.PutUint16(p.Tables["OS/2"][4:], uint16(weight))
-	return p.Bytes()
+	recorded := weight
+	if recorded < 1 {
+		recorded = 1
+	} else if recorded > 1000 {
+		recorded = 1000
+	}
+	binary.BigEndian.PutUint16(p.Tables["OS/2"][4:], uint16(recorded))
+	out, err := p.Bytes()
+	return out, 0, err
 }
 func (f *fakeOps) Merge(ctx context.Context, data []byte, fallbacks [][]byte) ([]byte, error) {
 	f.mu.Lock()

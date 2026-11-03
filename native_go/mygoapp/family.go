@@ -153,18 +153,21 @@ func (a *application) weightRows() []weightRow {
 	}
 	for _, target := range weightTargets {
 		index, emphasis := inventory.PickFace(weights, a.settings.Font.WeightFaces, target)
+		method := ""
 		if len(members) == 1 {
-			// Without a family the build emboldens every weight above 400, as 2.0 did.
-			index, emphasis = 0, 0
-			if target > 400 {
-				emphasis = target
-			}
+			emphasis, method = inventory.SingleFontEmphasis(int(weights[0]), target, a.settings.Font.WeightFaces)
+			index = 0
 		}
 		if index < 0 {
 			continue
 		}
 		row := weightRow{target, members[index].Name, a.t("weight.native"), "native"}
-		if emphasis > 0 {
+		switch {
+		case len(members) == 1 && method == "synthetic_reduction":
+			row.Badge, row.Kind = a.t("weight.synthetic_thin"), "reduction"
+		case len(members) == 1 && method == "synthetic_emphasis":
+			row.Badge, row.Kind = a.t("weight.synthetic"), "synthetic"
+		case len(members) != 1 && emphasis > 0:
 			row.Badge, row.Kind = a.t("weight.synthetic"), "synthetic"
 		}
 		rows = append(rows, row)

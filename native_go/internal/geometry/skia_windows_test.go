@@ -43,8 +43,16 @@ func TestNativeRoundtrip(t *testing.T) {
 	if _, err = e.Process(Path{{Verb: 8}}, Options{}); err == nil {
 		t.Fatal("accepted invalid verb")
 	}
-	if _, err = e.Process(p, Options{Radius: -1}); err == nil {
-		t.Fatal("accepted negative radius")
+	shrunk, err := e.Process(p, Options{Radius: -4, Clockwise: true})
+	if err != nil || len(shrunk) == 0 {
+		t.Fatalf("erosion rejected; rebuild hd2skia.dll from native/skia_bridge: %v", err)
+	}
+	if AbsArea(shrunk) >= AbsArea(p) {
+		t.Fatal("negative radius did not shrink the outline")
+	}
+	hairline := rectangle(0, 0, 2, 2)
+	if _, err = e.Process(hairline, Options{Radius: -20, Clockwise: true}); err != nil {
+		t.Fatalf("collapsed erosion aborted instead of returning: %v", err)
 	}
 	e.Close()
 	if _, err = e.Process(p, Options{}); err == nil {

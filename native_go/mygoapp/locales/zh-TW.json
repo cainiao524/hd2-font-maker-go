@@ -41,6 +41,7 @@
   "weight.auto": "自動",
   "weight.native": "原生",
   "weight.synthetic": "人工加粗",
+  "weight.synthetic_thin": "人工變細",
   "weight.variable": "可變 wght {value}",
   "preview.title": "字型預覽",
   "preview.font": "預覽字型",

@@ -41,6 +41,7 @@
   "weight.auto": "自動",
   "weight.native": "専用",
   "weight.synthetic": "擬似太字",
+  "weight.synthetic_thin": "擬似細字",
   "weight.variable": "可変 wght {value}",
   "preview.title": "フォントプレビュー",
   "preview.font": "プレビューフォント",

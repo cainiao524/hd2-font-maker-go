@@ -378,3 +378,35 @@ func assertWindingEqual(t *testing.T, before, after Path) {
 		}
 	}
 }
+
+func boxPath(x, y, w, h float64) Path {
+	var p Path
+	p.MoveTo(x, y)
+	p.LineTo(x+w, y)
+	p.LineTo(x+w, y+h)
+	p.LineTo(x, y+h)
+	p.Close()
+	return p
+}
+
+func TestErosionKeptRejectsCollapsedOutlines(t *testing.T) {
+	full := boxPath(0, 0, 100, 80)
+	if !ErosionKept(full, boxPath(5, 5, 90, 70)) {
+		t.Fatal("a modest inset was rejected")
+	}
+	if ErosionKept(full, nil) {
+		t.Fatal("a vanished outline was kept")
+	}
+	if ErosionKept(full, boxPath(0, 0, 10, 10)) {
+		t.Fatal("an outline that lost most of its area was kept")
+	}
+	outer := boxPath(0, 0, 100, 100)
+	holed := append(Path{}, outer...)
+	holed = append(holed, boxPath(20, 20, 20, 20)...)
+	if ErosionKept(holed, outer) {
+		t.Fatal("a lost counter was kept")
+	}
+	if !ErosionKept(nil, nil) {
+		t.Fatal("an empty glyph was treated as a failed erosion")
+	}
+}

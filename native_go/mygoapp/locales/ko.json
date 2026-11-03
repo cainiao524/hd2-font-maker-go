@@ -41,6 +41,7 @@
   "weight.auto": "자동",
   "weight.native": "전용",
   "weight.synthetic": "인공 굵게",
+  "weight.synthetic_thin": "인공 얇게",
   "weight.variable": "가변 wght {value}",
   "preview.title": "글꼴 미리 보기",
   "preview.font": "미리 보기 글꼴",

@@ -50,7 +50,11 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 	}
 	requests := make([]request, len(s.templates))
 	indices := make(map[string]int)
-	var jobs []func(context.Context) (*inventory.Face, error)
+	type styledFace struct {
+		face      *inventory.Face
+		fallbacks int
+	}
+	var jobs []func(context.Context) (styledFace, error)
 	for i, original := range s.templates {
 		r := request{axes: cloneAxes(s.options.Axes), weight: int(original.Weight), method: "authored_static"}
 		if len(axes) > 0 {
@@ -70,9 +74,15 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 				r.emphasize = true
 				r.method = "family_synthetic_emphasis"
 			}
-		} else if s.options.MatchWeights && r.weight > 400 {
-			r.emphasize = true
-			r.method = "synthetic_emphasis"
+		} else if s.options.MatchWeights {
+			declared := 400
+			if s.base != nil {
+				declared = int(s.base.Weight)
+			}
+			r.emphasis, r.method = inventory.SingleFontEmphasis(declared, r.weight, s.options.WeightFaces)
+			if r.emphasis != 0 {
+				r.emphasize = true
+			}
 		}
 		r.key = jobKey(r.axes, r.prepare, r.emphasize, pixelGrid, s.options.ProcessOutlines)
 		if r.emphasize {
@@ -86,36 +96,41 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 			continue
 		}
 		indices[r.key] = len(jobs)
-		jobs = append(jobs, func(ctx context.Context) (*inventory.Face, error) {
+		jobs = append(jobs, func(ctx context.Context) (styledFace, error) {
 			var data []byte
 			var err error
+			fallbacks := 0
 			switch {
 			case r.prepare:
 				data, err = s.ops.Prepare(ctx, raw, uint32(s.options.FaceIndex), r.axes, s.options.ProcessOutlines)
 			case r.emphasize && r.source != nil:
-				data, err = s.ops.Style(ctx, r.source.Data, r.emphasis, s.familyPixel[r.source.Digest], s.options.ProcessOutlines)
+				data, fallbacks, err = s.ops.Style(ctx, r.source.Data, r.emphasis, s.familyPixel[r.source.Digest], s.options.ProcessOutlines)
 			case r.emphasize:
-				data, err = s.ops.Style(ctx, s.base.Data, r.weight, pixelGrid, s.options.ProcessOutlines)
+				passed := r.emphasis
+				if passed == 0 {
+					passed = r.weight
+				}
+				data, fallbacks, err = s.ops.Style(ctx, s.base.Data, passed, pixelGrid, s.options.ProcessOutlines)
 			case r.source != nil:
-				return r.source, nil
+				return styledFace{r.source, 0}, nil
 			default:
-				return s.base, nil
+				return styledFace{s.base, 0}, nil
 			}
 			if err != nil {
-				return nil, err
+				return styledFace{}, err
 			}
 			face, err := inventory.InspectFace(data)
 			if err != nil {
-				return nil, err
+				return styledFace{}, err
 			}
 			required := s.base.Chars
 			if r.source != nil {
 				required = r.source.Chars
 			}
 			if err = hasCoverage(face, required, "weight styling"); err != nil {
-				return nil, err
+				return styledFace{}, err
 			}
-			return face, nil
+			return styledFace{face, fallbacks}, nil
 		})
 	}
 	results, err := runJobs(s.ctx, jobs, s.options.Workers, s.stage("Preparing font weights"))
@@ -128,13 +143,27 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 	if s.options.MatchWeights {
 		mode = "game"
 	}
+	seenStyle := map[string]bool{}
+	totalFallbacks := 0
 	for i, original := range s.templates {
 		r := requests[i]
-		face := results[indices[r.key]]
+		styled := results[indices[r.key]]
+		face := styled.face
 		s.styled[original.Digest] = face
 		styleWeight[s.fallbackKey(original, face)] = r.weight
-		s.report.StyleAdaptation = append(s.report.StyleAdaptation, StyleReport{r.weight, r.method, r.axes, mode, s.options.ProcessOutlines, pixelGrid, face.Digest, face.Name, original.Name, original.Digest, original.Group})
+		if !seenStyle[r.key] {
+			seenStyle[r.key] = true
+			totalFallbacks += styled.fallbacks
+		}
+		s.report.StyleAdaptation = append(s.report.StyleAdaptation, StyleReport{
+			TargetWeight: r.weight, Method: r.method, Axes: r.axes, Mode: mode,
+			ProcessOutlines: s.options.ProcessOutlines, PixelGrid: pixelGrid,
+			SourceSHA256: face.Digest, SourceName: face.Name,
+			OriginalName: original.Name, OriginalSHA256: original.Digest, Group: original.Group,
+			SyntheticFallbacks: styled.fallbacks,
+		})
 	}
+	s.report.Performance["synthetic_fallbacks"] = totalFallbacks
 	chinese := append(append([]*inventory.Face{}, s.inv.Groups["sc"]...), s.inv.Groups["tc"]...)
 	seen := make(map[string]map[string]bool)
 	for _, original := range s.templates {

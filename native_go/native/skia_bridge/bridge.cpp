@@ -208,25 +208,34 @@ int hd_path_process(const HDCommand* input,uint64_t count,const HDOptions* optio
         Commands source=encode(p),output;
         std::vector<SkPoint> starts;
         firsts(source,starts);
-        if(!std::isfinite(options->radius) || options->radius<0)return 1;
-        if(options->radius>0 && !p.isEmpty()) {
+        if(!std::isfinite(options->radius))return 1;
+        // Positive radius dilates (stroke union). Negative radius erodes
+        // (stroke difference) by the same width. A vanished erosion is an
+        // empty success so the caller can keep the source glyph.
+        if(options->radius!=0 && !p.isEmpty()) {
+            const bool expand=options->radius>0;
+            const auto op=expand ? kUnion_SkPathOp : kDifference_SkPathOp;
             SkPaint paint;
             paint.setStyle(SkPaint::kStroke_Style);
-            paint.setStrokeWidth(options->radius*2);
+            paint.setStrokeWidth(std::fabs(options->radius)*2);
             paint.setStrokeCap(SkPaint::kRound_Cap);
             paint.setStrokeJoin(options->pixel_grid ? SkPaint::kMiter_Join : SkPaint::kRound_Join);
             paint.setStrokeMiter(2);
             SkPathBuilder stroke;
             if(!skpathutils::FillPathWithPaint(p,paint,&stroke))return 2;
             auto strokec=encode(stroke.detach());
-            auto filled=Op(p,path(strokec),kUnion_SkPathOp);
+            auto filled=Op(p,path(strokec),op);
             if(!filled) {
                 source=snap(source);strokec=snap(strokec);starts.clear();firsts(source,starts);
-                filled=Op(path(source),path(strokec),kUnion_SkPathOp);
+                filled=Op(path(source),path(strokec),op);
             }
             if(!filled)return 2;
-            firsts(strokec,starts);
-            output=winding(*filled,options->clockwise!=0,starts);
+            if(!expand && filled->isEmpty()) {
+                output.clear();
+            } else {
+                firsts(strokec,starts);
+                output=winding(*filled,options->clockwise!=0,starts);
+            }
         } else if(options->simplify) {
             auto simple=Simplify(p);
             if(!simple)return 2;

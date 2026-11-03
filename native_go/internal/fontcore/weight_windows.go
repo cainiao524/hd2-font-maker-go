@@ -6,14 +6,15 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"runtime"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/tdewolff/font"
 	"hd2font/native/internal/geometry"
+	"hd2font/native/internal/inventory"
 	"hd2font/native/internal/outlinecleanup"
 	"hd2font/native/internal/sfntio"
 )
@@ -30,6 +31,7 @@ type WeightReport struct {
 	Glyphs          int     `json:"glyphs"`
 	Weight          int     `json:"weight"`
 	Radius          float64 `json:"radius"`
+	Fallbacks       int     `json:"fallbacks"`
 	Workers         int     `json:"workers"`
 	ParseSeconds    float64 `json:"parse_seconds"`
 	GlyphSeconds    float64 `json:"glyph_seconds"`
@@ -62,17 +64,11 @@ func Weight(ctx context.Context, engine *geometry.Engine, data []byte, opts Weig
 		return nil, r, err
 	}
 	r.Glyphs = int(source.NumGlyphs())
-	radius := math.RoundToEven(float64(source.UnitsPerEm()) * math.Min(.0225, float64(opts.Weight-400)*.000075))
-	if opts.Weight <= 400 || radius <= 0 {
-		radius = 0
-		if !opts.ProcessOutlines {
-			r.OutputBytes = len(data)
-			r.TotalSeconds = time.Since(start).Seconds()
-			return append([]byte(nil), data...), r, nil
-		}
-	}
-	if opts.PixelGrid && radius > 0 {
-		radius = math.Max(1, math.RoundToEven(radius/4)) * 4
+	radius := inventory.EmphasisRadius(float64(source.UnitsPerEm()), opts.Weight, opts.PixelGrid)
+	if radius == 0 && !opts.ProcessOutlines {
+		r.OutputBytes = len(data)
+		r.TotalSeconds = time.Since(start).Seconds()
+		return append([]byte(nil), data...), r, nil
 	}
 	r.Radius = radius
 	workers := opts.Workers
@@ -93,6 +89,7 @@ func Weight(ctx context.Context, engine *geometry.Engine, data []byte, opts Weig
 	var wg sync.WaitGroup
 	var once sync.Once
 	var glyphErr error
+	var erodedFallbacks atomic.Int32
 	fail := func(err error) { once.Do(func() { glyphErr = err; cancel() }) }
 	for worker := 0; worker < workers; worker++ {
 		wg.Go(func() {
@@ -105,16 +102,43 @@ func Weight(ctx context.Context, engine *geometry.Engine, data []byte, opts Weig
 					fail(fmt.Errorf("glyph %d: %w", id, err))
 					return
 				}
-				out, err := engine.Process(p, geometry.Options{Radius: float32(radius), PixelGrid: opts.PixelGrid, Clockwise: true})
-				if err == nil {
-					results[id], err = sfntio.EncodeGlyph(out)
+				out := p
+				fallback := false
+				if radius < 0 && geometry.ContourCount(p) > 0 {
+					next, procErr := engine.Process(p, geometry.Options{Radius: float32(radius), PixelGrid: opts.PixelGrid, Clockwise: true})
+					if procErr != nil || !geometry.ErosionKept(p, next) {
+						fallback = true
+					} else {
+						out = next
+					}
+				} else {
+					used := radius
+					if used < 0 {
+						used = 0
+					}
+					next, procErr := engine.Process(p, geometry.Options{Radius: float32(used), PixelGrid: opts.PixelGrid, Clockwise: true})
+					if procErr != nil {
+						fail(fmt.Errorf("glyph %d: %w", id, procErr))
+						return
+					}
+					out = next
 				}
+				glyph, err := sfntio.EncodeGlyph(out)
 				if err == nil && opts.ProcessOutlines {
-					results[id], err = cleanEncoded(results[id])
+					glyph, err = cleanEncoded(glyph)
+				}
+				if err != nil && radius < 0 {
+					if glyph, err = sfntio.EncodeGlyph(p); err == nil {
+						fallback = geometry.ContourCount(p) > 0
+					}
 				}
 				if err != nil {
 					fail(fmt.Errorf("glyph %d: %w", id, err))
 					return
+				}
+				results[id] = glyph
+				if fallback {
+					erodedFallbacks.Add(1)
 				}
 			}
 		})
@@ -129,6 +153,7 @@ feed:
 	}
 	close(jobs)
 	wg.Wait()
+	r.Fallbacks = int(erodedFallbacks.Load())
 	if glyphErr != nil {
 		return nil, r, glyphErr
 	}

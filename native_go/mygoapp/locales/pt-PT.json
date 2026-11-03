@@ -41,6 +41,7 @@
   "weight.auto": "Automático",
   "weight.native": "Nativo",
   "weight.synthetic": "Negrito sintético",
+  "weight.synthetic_thin": "Afinamento sintético",
   "weight.variable": "Variável wght {value}",
   "preview.title": "Pré-visualização do tipo de letra",
   "preview.font": "Tipo de letra da pré-visualização",

@@ -41,6 +41,7 @@
   "weight.auto": "Automatycznie",
   "weight.native": "Własny krój",
   "weight.synthetic": "Sztuczne pogrubienie",
+  "weight.synthetic_thin": "Sztuczne pocienienie",
   "weight.variable": "Zmienna wght {value}",
   "preview.title": "Podgląd czcionki",
   "preview.font": "Czcionka podglądu",
