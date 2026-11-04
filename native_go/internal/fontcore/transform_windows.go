@@ -186,11 +186,21 @@ func (p *Processor) transform(ctx context.Context, data []byte, o transformOptio
 				applied = true
 			}
 		} else if o.radius > 0 || o.simplify {
-			path, err = p.Geometry.Process(path, geometry.Options{Radius: o.radius, PixelGrid: o.pixel, Clockwise: m.ttf, Simplify: o.simplify})
-			if err != nil {
-				return err
+			next, procErr := p.Geometry.Process(path, geometry.Options{Radius: o.radius, PixelGrid: o.pixel, Clockwise: m.ttf, Simplify: o.simplify})
+			if procErr != nil {
+				if o.radius == 0 {
+					return procErr
+				}
+				// A single failed synthetic stroke must not discard the whole
+				// font. Keep this glyph's original outline and continue.
+				if geometry.ContourCount(before) > 0 && o.fallbacks != nil {
+					o.fallbacks.Add(1)
+				}
+				path = before
+			} else {
+				path = next
+				applied = o.radius > 0
 			}
-			applied = o.radius > 0
 		}
 		changed := applied || (o.simplify && !geometry.EqualContours(before, path))
 		if !changed {
@@ -238,7 +248,7 @@ func (p *Processor) transform(ctx context.Context, data []byte, o transformOptio
 			return nil
 		}
 		bail := func(err error) error {
-			if err != nil && applied && o.radius < 0 {
+			if err != nil && applied && o.radius != 0 {
 				return fallbackGlyph()
 			}
 			return err
