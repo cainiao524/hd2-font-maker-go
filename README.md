@@ -27,7 +27,7 @@
 - 请保留 EXE 同目录的 DLL 和 `vendor` 文件夹。
 - 不需要安装 Python、Go 或 WebView。
 
-2.2.0 改变单字体的字重匹配：未声明或声明为 Regular（400）的单个静态字体按中等（500）原样使用，常规槽合成变细，粗体槽按现有差额适度加粗。同族多字重和可变字体轴不变。因此单字体在相同设置下不再与 2.0.0 / 2.1.x 逐字节一致，需要重新生成字体 Mod。变细依赖重新编译的 `hd2skia.dll`；未重编时变细会逐字回退为原轮廓，不会中止整包。已有用户可保留 `UserData`。
+2.2.1 修复合成字重时单个复杂字形触发原生轮廓运算错误、导致无法得到 ZIP 的问题。该字形会回退到原轮廓并记录回退次数，其他字形继续生成；仍会执行 ZIP 回读和 SHA-256 校验。2.2.0 改变单字体的字重匹配：未声明或声明为 Regular（400）的单个静态字体按中等（500）原样使用，常规槽合成变细，粗体槽按现有差额适度加粗。同族多字重和可变字体轴不变。因此单字体在相同设置下不再与 2.0.0 / 2.1.x 逐字节一致，需要重新生成字体 Mod。变细依赖重新编译的 `hd2skia.dll`；未重编时变细会逐字回退为原轮廓，不会中止整包。已有用户可保留 `UserData`。
 
 2.1.2 修复生成进度一直显示“—%”的问题，整体进度按阶段完成量推进，ZIP 验证成功后才到 100%。已有用户可保留 `UserData`。
 
@@ -57,14 +57,14 @@
 
 ## 注意事项
 
-- 2.2.0 尚未做游戏内测试。单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。历史上的 2.0.0 曾在游戏版本 01.007.200 的简体中文、繁体中文、日文界面确认显示正常；那项结果不代表 2.2.0。
-- 已知问题：合成加粗仍可能报 `native path operation failed (code 2)` 并中止生成；关闭“处理轮廓”也不一定能解决。合成变细失败或轮廓塌缩时保留该字的原轮廓并计入 `synthetic_fallbacks`，不中止整包。
+- 2.2.1 尚未做游戏内测试。单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。历史上的 2.0.0 曾在游戏版本 01.007.200 的简体中文、繁体中文、日文界面确认显示正常；那项结果不代表 2.2.1。
+- 合成字重遇到单个字形的原生轮廓运算错误时会回退该字形并继续生成；如果字体表、字形编码或整个文件无法安全回退，仍会报告失败。
 - 字体版权归原作者所有，请只使用你有权使用的字体，并按其许可分享生成的 Mod。
 - 发行包和源码不包含任何个人字体、游戏字体、游戏资源或预生成的字体 Mod。
 
 ## 验证
 
-2.2.0 的单字体字重改动、变细回退和未完成的 Windows / 游戏内验证见 [VALIDATION-2.2.0.zh-CN.txt](VALIDATION-2.2.0.zh-CN.txt)。
+2.2.1 的合成字重回退、Windows 构建和未完成的游戏内验证见 [VALIDATION-2.2.1.zh-CN.txt](VALIDATION-2.2.1.zh-CN.txt)。2.2.0 的单字体字重改动、变细回退和未完成的 Windows / 游戏内验证见 [VALIDATION-2.2.0.zh-CN.txt](VALIDATION-2.2.0.zh-CN.txt)。
 
 2.1.2 的进度回归、真实资源生成、源码包重建和验证边界见 [VALIDATION-2.1.2.zh-CN.txt](VALIDATION-2.1.2.zh-CN.txt)。
 
@@ -107,7 +107,7 @@
 
 ## English
 
-HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download the Windows build from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.0 anchors a single Regular font at medium: 500 is unchanged, 700 is moderately bolder, and 400 is synthetically thinned. That single-font output is intentionally no longer byte-for-byte compatible with 2.0.0. Thinning needs a rebuilt `hd2skia.dll`.
+HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download the Windows build from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.1 keeps the 2.2.0 single-font medium anchor and continues generation when an individual synthetic glyph operation fails by retaining that glyph's original outline. That single-font output is intentionally no longer byte-for-byte compatible with 2.0.0. Thinning needs a rebuilt `hd2skia.dll`.
 
 ## 许可
 

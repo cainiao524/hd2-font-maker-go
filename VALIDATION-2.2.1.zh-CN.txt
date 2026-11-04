@@ -1,0 +1,26 @@
+HD2 Font Maker 2.2.1 验证记录
+
+本记录覆盖本版可以在当前 Windows 环境执行的检查。它不代表实际游戏安装、游戏内字体渲染或真实游戏资源性能验证。
+
+改动
+- 合成加粗或变细时，单个字形的原生轮廓运算失败会回退到该字形的原轮廓，继续处理其余字形。
+- 字形编码或清理阶段在已应用合成变换后失败时，也会尝试保留原字形；不能安全回退的字体结构错误仍然返回失败。
+- 回退次数写入 style_adaptation[].synthetic_fallbacks 和 performance.synthetic_fallbacks。
+- 2.2.0 的单字体中等字重锚定、同族多字重、可变字体轴和 2.1.2 的进度百分比逻辑保持不变。
+
+已完成
+- 从 GitHub 远端 codex/1.3-go-archive（v2.2.0 提交 a40e8b337b3a92852f489e52d4c01842f9cc5678）建立修复分支。
+- 使用 Go 1.27.3 执行根目录 test.ps1：native_go 全模块测试、go vet、mygoapp、production、cmd/hd2font-mygo 测试与 go vet 均通过。
+- 使用 build.ps1 -Test 重新编译 Windows x64 HD2FontMaker.exe；文件版本和产品版本均为 2.2.1.0。
+- 版本资源由 mygoapp/winres.json 重新生成，已随源码提交。
+- 通过 package.ps1 生成 Windows 便携包、源码包和 SHA-256 清单后，检查 ZIP 成员、源码内容和清单哈希。
+
+失败边界
+- 本版没有使用真实私有字体专门触发 native path operation failed (code 2) 并逐字核对回退计数；代码路径由静态检查和现有原生字体测试覆盖。
+- 没有启动 HD2、导入 Mod 管理器、安装生成 ZIP 或观察简体中文、繁体中文和日文的游戏内 400/500/700 显示。
+- 生成成功只表示字体文件、图集、资源补丁、ZIP 回读和哈希校验通过，不能替代游戏内兼容性证据。
+
+发布产物复核
+- Windows ZIP：36 个文件成员。
+- Source ZIP：300 个文件成员；未包含 .git、.toolchains、dist、UserData 或 test-output。
+- 清单文件：HD2-Font-Maker-2.2.1-SHA256SUMS.txt，内容与两个 ZIP 的独立哈希复核一致。

@@ -1,7 +1,10 @@
-HD2 Font Maker 2.2.0 native source
+HD2 Font Maker 2.2.1 native source
 ====================================
 
-Version 2.2.0 changes single static fonts when weight matching is on: a Regular
+Version 2.2.1 keeps the 2.2.0 single-static-font behavior and additionally
+falls back an individual glyph when synthetic expansion hits a native path
+operation error, so one difficult outline cannot abort the ZIP. Version 2.2.0
+changes single static fonts when weight matching is on: a Regular
 or unspecified face is anchored at medium (500), lighter game slots are eroded,
 and heavier slots use the existing bold curve (Style(600) for 500 -> 700).
 Family faces and variable axes are unchanged. Single-font packages are

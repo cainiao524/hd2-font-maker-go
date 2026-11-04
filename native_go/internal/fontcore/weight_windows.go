@@ -118,16 +118,16 @@ func Weight(ctx context.Context, engine *geometry.Engine, data []byte, opts Weig
 					}
 					next, procErr := engine.Process(p, geometry.Options{Radius: float32(used), PixelGrid: opts.PixelGrid, Clockwise: true})
 					if procErr != nil {
-						fail(fmt.Errorf("glyph %d: %w", id, procErr))
-						return
+						fallback = geometry.ContourCount(p) > 0
+					} else {
+						out = next
 					}
-					out = next
 				}
 				glyph, err := sfntio.EncodeGlyph(out)
 				if err == nil && opts.ProcessOutlines {
 					glyph, err = cleanEncoded(glyph)
 				}
-				if err != nil && radius < 0 {
+				if err != nil && radius != 0 {
 					if glyph, err = sfntio.EncodeGlyph(p); err == nil {
 						fallback = geometry.ContourCount(p) > 0
 					}
