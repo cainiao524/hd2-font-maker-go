@@ -613,6 +613,17 @@ func (a *application) weightSources(c *ui.Context) {
 	rows := a.weightRows()
 	members := a.members()
 	ui.Column(c.Key("weight-sources")).Gap(4).MinWidth(0).Children(func() {
+		if len(members) == 1 && len(rows) > 0 && rows[0].Kind != "variable" {
+			labels := []string{a.t("weight.single_regular") + " (400)", a.t("weight.medium") + " (500)", a.t("weight.bold") + " (700)"}
+			selected := labels[slices.Index(weightTargets, inventory.SingleFontAnchor(a.settings.Font.SingleFontWeight))]
+			muted(c, a.t("weight.single_source"), 12)
+			if ui.Select(c.Key("single-font-weight"), &selected, labels).FillWidth().Height(32).Label(a.t("weight.single_source")).Disabled(a.busy).Changed() {
+				a.settings.Font.SingleFontWeight = weightTargets[slices.Index(labels, selected)]
+				a.settings.Font.WeightFaces = nil
+				a.changed(true)
+			}
+			muted(c, a.t("weight.single_help"), 11)
+		}
 		ui.Row(c).AlignItems(ui.Center).Gap(10).Children(func() {
 			muted(c, a.t("weight.source"), 12).Grow(1).MinWidth(0)
 			if len(rows) > 0 && rows[0].Kind != "variable" {
@@ -630,8 +641,12 @@ func (a *application) weightSources(c *ui.Context) {
 					options := append([]string{a.t("weight.auto")}, a.memberLabels()...)
 					synthetic := a.t("weight.synthetic")
 					if len(members) == 1 {
-						if _, method := inventory.SingleFontEmphasis(members[0].Style.Weight, row.Target, map[int]int{row.Target: -1}); method == "synthetic_reduction" {
+						_, method := inventory.SingleFontEmphasis(a.settings.Font.SingleFontWeight, row.Target, map[int]int{row.Target: -1})
+						switch method {
+						case "synthetic_reduction":
 							synthetic = a.t("weight.synthetic_thin")
+						case "authored_static":
+							synthetic = a.t("weight.original")
 						}
 					}
 					options = append(options, synthetic)

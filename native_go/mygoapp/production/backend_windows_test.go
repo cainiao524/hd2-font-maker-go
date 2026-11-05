@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"hd2font/native/internal/archiveio"
 	"hd2font/native/internal/inventory"
 	"hd2font/native/internal/pipeline"
+	"hd2font/native/internal/sfntio"
 	"hd2font/native/mygoapp"
 )
 
@@ -114,6 +116,7 @@ func TestPureGoInspectCollectionsAndCFF(t *testing.T) {
 func TestGeneratePassesFullSourceAndOptions(t *testing.T) {
 	b := testBackend(t)
 	req := request(t)
+	req.Font.SingleFontWeight = 400
 	inv := &inventory.Inventory{}
 	b.deps.scan = func(ctx context.Context, path string, progress func(string)) (*inventory.Inventory, error) {
 		if path != req.GameFolder {
@@ -130,7 +133,7 @@ func TestGeneratePassesFullSourceAndOptions(t *testing.T) {
 		if err != nil || !bytes.Equal(full, goregular.TTF) {
 			t.Fatal("build did not receive complete original font")
 		}
-		if opts.FaceIndex != req.Font.FaceIndex || !reflect.DeepEqual(opts.Axes, req.Font.Axes) || !slices.Equal(opts.Languages, req.Languages) || opts.MatchWeights || !opts.ProcessOutlines || !opts.IncludeSymbols {
+		if opts.SingleFontWeight != 400 || opts.FaceIndex != req.Font.FaceIndex || !reflect.DeepEqual(opts.Axes, req.Font.Axes) || !slices.Equal(opts.Languages, req.Languages) || opts.MatchWeights || !opts.ProcessOutlines || !opts.IncludeSymbols {
 			t.Fatalf("request mismatch: %+v", opts)
 		}
 		if opts.BinDir != b.binDir || opts.WorkDir != filepath.Join(b.userData, "Work") || opts.AtlasExecutable != filepath.Join(b.binDir, "vendor", "msdf-atlas-gen", "msdf-atlas-gen.exe") {
@@ -264,6 +267,67 @@ func TestRealPreviewPerJobAndCleanup(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatal("preview font files leaked")
+	}
+}
+
+func TestSingleFontPreviewAnchorsMediumRegardlessOfMetadata(t *testing.T) {
+	b := testBackend(t)
+	if _, err := os.Stat(filepath.Join(b.binDir, "hd2harfbuzz.dll")); err != nil {
+		t.Skip("native DLLs not built")
+	}
+	for _, declared := range []uint16{300, 400, 500, 700} {
+		t.Run(strconv.Itoa(int(declared)), func(t *testing.T) {
+			font, err := sfntio.Parse(goregular.TTF, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			binary.BigEndian.PutUint16(font.Tables["OS/2"][4:], declared)
+			data, err := font.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := fontFile(t, data, "single.ttf")
+			req := mygoapp.PreviewRequest{Font: mygoapp.FontSelection{Path: path}, Text: "Super Earth! 0123456789", Width: 800, Height: 240}
+			render := func() []byte {
+				t.Helper()
+				result, err := b.Preview(context.Background(), req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var encoded bytes.Buffer
+				if err := png.Encode(&encoded, result.Image); err != nil {
+					t.Fatal(err)
+				}
+				return encoded.Bytes()
+			}
+			original := render()
+			req.MatchWeights, req.Weight = true, 500
+			if !bytes.Equal(render(), original) {
+				t.Fatal("medium preview changed the imported outlines")
+			}
+			req.Weight = 400
+			thin := render()
+			req.Weight = 700
+			bold := render()
+			if bytes.Equal(thin, original) || bytes.Equal(bold, original) || bytes.Equal(thin, bold) {
+				t.Fatal("thin, medium and bold previews must be distinct")
+			}
+			req.Font.SingleFontWeight, req.Weight = 400, 400
+			if !bytes.Equal(render(), original) {
+				t.Fatal("explicit regular source must stay unchanged in the regular preview")
+			}
+			req.Weight = 500
+			medium := render()
+			req.Weight = 700
+			bold = render()
+			if bytes.Equal(medium, original) || bytes.Equal(bold, original) || bytes.Equal(medium, bold) {
+				t.Fatal("regular source must produce distinct medium and bold previews")
+			}
+			req.Font.SingleFontWeight = 700
+			if !bytes.Equal(render(), original) {
+				t.Fatal("explicit bold source must stay unchanged in the bold preview")
+			}
+		})
 	}
 }
 

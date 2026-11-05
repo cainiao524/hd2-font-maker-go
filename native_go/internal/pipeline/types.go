@@ -36,6 +36,9 @@ type Options struct {
 	// WeightFaces pins the face of a weight row (inventory.WeightRow): 0 is the
 	// source, 1.. index Family, and -1 asks for synthetic emphasis of the source.
 	WeightFaces map[int]int
+	// SingleFontWeight assigns a lone static source to 400, 500, or 700.
+	// Zero defaults to 500. Multiple family faces and variable axes ignore it.
+	SingleFontWeight int
 }
 
 // FontFace names one face of a font file or collection.

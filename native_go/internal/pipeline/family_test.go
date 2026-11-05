@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+	"encoding/binary"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -56,6 +58,49 @@ func TestFamilyFacesChooseWeights(t *testing.T) {
 	}
 	if len(ops.styles) != 1 || ops.styles[0].weight != 500 {
 		t.Errorf("emphasis should cover exactly 400 to 500: %+v", ops.styles)
+	}
+}
+
+func TestCollectionUsesNativeRegularMediumAndBold(t *testing.T) {
+	inv, options := pipelineFixture(t)
+	weights := []int{700, 500, 400}
+	data := make([]byte, 12+4*len(weights))
+	copy(data, "ttcf")
+	binary.BigEndian.PutUint32(data[4:], 0x10000)
+	binary.BigEndian.PutUint32(data[8:], uint32(len(weights)))
+	for i, weight := range weights {
+		face, err := syntheticFont(fmt.Sprintf("Native %d", weight), weight, 256, []rune{'?', 'A', 0x4e2d})
+		if err != nil {
+			t.Fatal(err)
+		}
+		offset := uint32(len(data))
+		binary.BigEndian.PutUint32(data[12+4*i:], offset)
+		for table := 0; table < int(binary.BigEndian.Uint16(face[4:])); table++ {
+			record := 12 + 16*table + 8
+			binary.BigEndian.PutUint32(face[record:], binary.BigEndian.Uint32(face[record:])+offset)
+		}
+		data = append(data, face...)
+	}
+	path := filepath.Join(t.TempDir(), "family.ttc")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	options.FontPath, options.FaceIndex = path, 2
+	options.Family = []FontFace{{Path: path, FaceIndex: 0}, {Path: path, FaceIndex: 1}}
+	options.SingleFontWeight = 700 // A stale single-face choice must not affect the family.
+	options.Languages = []string{"sc", "tc"}
+	ops := &fakeOps{}
+	report, err := build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ops.styles) != 0 || len(report.FamilyFaces) != 3 {
+		t.Fatalf("complete collection synthesized or lost faces: styles=%+v family=%v", ops.styles, report.FamilyFaces)
+	}
+	for _, row := range report.StyleAdaptation {
+		if row.Method != "family_face" || row.SourceName != fmt.Sprintf("Native %d", row.TargetWeight) {
+			t.Fatalf("collection did not use the matching native face: %+v", row)
+		}
 	}
 }
 

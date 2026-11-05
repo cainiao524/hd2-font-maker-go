@@ -40,6 +40,7 @@ func run(ctx context.Context, args []string, output, progress io.Writer) error {
 	flags.StringVar(&axisValues, "axes", "", "variation coordinates, e.g. wght=400,opsz=16")
 	flags.StringVar(&languages, "languages", "sc", "comma-separated UI languages: sc,tc,latin,jp,ko")
 	flags.BoolVar(&options.MatchWeights, "weights", true, "match original game font weights")
+	flags.IntVar(&options.SingleFontWeight, "single-font-weight", 500, "assign a lone static font to 400, 500 (default), or 700")
 	flags.BoolVar(&options.ProcessOutlines, "outlines", false, "process font outlines")
 	flags.BoolVar(&options.IncludeSymbols, "symbols", false, "include covered symbol font groups")
 	flags.StringVar(&options.BinDir, "bin", filepath.Dir(executable), "directory containing native font libraries")
@@ -56,6 +57,9 @@ func run(ctx context.Context, args []string, output, progress io.Writer) error {
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
+	}
+	if options.SingleFontWeight != 400 && options.SingleFontWeight != 500 && options.SingleFontWeight != 700 {
+		return fmt.Errorf("--single-font-weight must be 400, 500, or 700")
 	}
 	if snapshot == "" || options.FontPath == "" || options.OutputZIP == "" {
 		return fmt.Errorf("--snapshot, --font and --output are required")

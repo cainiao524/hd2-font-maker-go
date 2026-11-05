@@ -68,7 +68,7 @@ func (b *Backend) preview(ctx context.Context, data []byte, req mygoapp.PreviewR
 		var index int
 		index, emphasis = inventory.PickFace(weights, req.Font.WeightFaces, target)
 		if len(weights) == 1 {
-			emphasis, _ = inventory.SingleFontEmphasis(int(weights[0]), target, req.Font.WeightFaces)
+			emphasis, _ = inventory.SingleFontEmphasis(req.Font.SingleFontWeight, target, req.Font.WeightFaces)
 			index = 0
 		}
 		if len(weights) > 1 {

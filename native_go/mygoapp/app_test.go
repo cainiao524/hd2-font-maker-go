@@ -66,7 +66,7 @@ func TestCatalogsAndSettings(t *testing.T) {
 		s.Languages = []string{"sc", "tc"}
 		s.MatchWeights = false
 		s.ProcessOutlines = true
-		s.Font = FontSelection{Path: "example.ttc", FaceIndex: 2}
+		s.Font = FontSelection{Path: "example.ttc", FaceIndex: 2, SingleFontWeight: 400}
 		if err := SaveSettings(path, s); err != nil {
 			t.Fatal(err)
 		}

@@ -214,6 +214,7 @@ type fakeOps struct {
 	styles       []struct {
 		weight          int
 		pixel, outlines bool
+		sourceWeight    uint16
 	}
 	merges, conversions, subsets int
 	drop                         rune
@@ -240,16 +241,17 @@ func (f *fakeOps) PrepareAtlasFallback(ctx context.Context, data []byte, outline
 	return data, ctx.Err()
 }
 func (f *fakeOps) Style(ctx context.Context, data []byte, weight int, pixel, outlines bool) ([]byte, int, error) {
-	f.mu.Lock()
-	f.styles = append(f.styles, struct {
-		weight          int
-		pixel, outlines bool
-	}{weight, pixel, outlines})
-	f.mu.Unlock()
 	p, err := sfntio.Parse(data, 0)
 	if err != nil {
 		return nil, 0, err
 	}
+	f.mu.Lock()
+	f.styles = append(f.styles, struct {
+		weight          int
+		pixel, outlines bool
+		sourceWeight    uint16
+	}{weight, pixel, outlines, binary.BigEndian.Uint16(p.Tables["OS/2"][4:])})
+	f.mu.Unlock()
 	recorded := weight
 	if recorded < 1 {
 		recorded = 1

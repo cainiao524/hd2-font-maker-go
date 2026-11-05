@@ -27,7 +27,7 @@
 - 请保留 EXE 同目录的 DLL 和 `vendor` 文件夹。
 - 不需要安装 Python、Go 或 WebView。
 
-2.2.1 修复合成字重时单个复杂字形触发原生轮廓运算错误、导致无法得到 ZIP 的问题。该字形会回退到原轮廓并记录回退次数，其他字形继续生成；仍会执行 ZIP 回读和 SHA-256 校验。2.2.0 改变单字体的字重匹配：未声明或声明为 Regular（400）的单个静态字体按中等（500）原样使用，常规槽合成变细，粗体槽按现有差额适度加粗。同族多字重和可变字体轴不变。因此单字体在相同设置下不再与 2.0.0 / 2.1.x 逐字节一致，需要重新生成字体 Mod。变细依赖重新编译的 `hd2skia.dll`；未重编时变细会逐字回退为原轮廓，不会中止整包。已有用户可保留 `UserData`。
+2.2.2 增加「导入字体作为」：单个静态字体默认作为中等（500），自动生成细体和粗体；也可选择细体／常规（400），自动加粗生成中等和粗体，或选择粗体（700）。基准选择随字体保存，不同档位均从导入字体独立生成。字体集合内已有同族常规、中等、粗体时自动匹配对应字面。同步更新至 MyGo 0.7.4、Go 1.27.3。需要重新生成字体 Mod 才能应用修正，已有用户可保留 `UserData`。保留 2.2.1 的单字形失败回退与计数。
 
 2.1.2 修复生成进度一直显示“—%”的问题，整体进度按阶段完成量推进，ZIP 验证成功后才到 100%。已有用户可保留 `UserData`。
 
@@ -38,7 +38,7 @@
 1. 选择 Helldivers 2 安装目录或其 `data` 文件夹。
 2. 选择或直接拖入 TTF、OTF、TTC、OTC 字体。同族的多个字重文件放在同一文件夹即可自动识别；字体集合也可选择具体字面。
 3. 选择要替换的游戏字体组：西文、简中、繁中、日文、韩文，按需加选表情和特殊符号。
-4. 按需开关「匹配游戏字重」和「处理轮廓」。可查看常规、中等、粗体的来源，或手动指定来源；顶部可切换预览字重并与原版字体对照。
+4. 按需开关「匹配游戏字重」和「处理轮廓」。单字体在「导入字体作为」选择原字体对应的字重，默认为中等；只有细体时选择「细体 / 常规 (400)」。集合或同族多个字重自动匹配，也可逐行手动指定来源。顶部可切换预览字重并与原版字体对照。
 5. 填写 Mod 名称和输出 ZIP，点击「生成字体 ZIP」。默认名称跟随字体家族，手动修改后保留；底部会列出生成前仍缺少的步骤。
 6. 用 Mod 管理器安装生成的 ZIP。
 
@@ -47,7 +47,7 @@
 ## 功能
 
 - **完整替换**：保留源字体的完整字符表，支持简繁混排；同族多字重模式先从其他家族字面补缺字，再回退到原游戏字体。
-- **字重匹配**：自动选择同族的原生字重，只对仍不足的字重差进行合成加粗；可变字体使用自身字重轴。单个静态字体以 OS/2 字重为锚点，Regular 或未声明视为中等（500）：500 原样，700 适度加粗，400 合成变细。可手动把某一行改回原样。
+- **字重匹配**：集合或同族多个字面自动选择对应的原生字重，只对仍不足的字重差进行合成加粗；可变字体使用自身字重轴。单个静态字体默认作为中等（500），可自选常规（400）或粗体（700），所选档位原样使用，其余档位自动生成；也可手动把某一行改回原样。
 - **轮廓处理**：修复轮廓、清理边缘，与字重匹配分别开关。
 - **格式保持**：保留目标字体的 TTF/CFF 格式、字体单位（UPM）以及原游戏字体的家族和样式注册。
 - **图集输出**：生成 RGBA MTSDF 图集及全部 mip 层级。
@@ -57,14 +57,14 @@
 
 ## 注意事项
 
-- 2.2.1 尚未做游戏内测试。单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。历史上的 2.0.0 曾在游戏版本 01.007.200 的简体中文、繁体中文、日文界面确认显示正常；那项结果不代表 2.2.1。
+- 2.2.2 尚未做游戏内测试。单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。历史上的 2.0.0 曾在游戏版本 01.007.200 的简体中文、繁体中文、日文界面确认显示正常；那项结果不代表 2.2.2。
 - 合成字重遇到单个字形的原生轮廓运算错误时会回退该字形并继续生成；如果字体表、字形编码或整个文件无法安全回退，仍会报告失败。
 - 字体版权归原作者所有，请只使用你有权使用的字体，并按其许可分享生成的 Mod。
 - 发行包和源码不包含任何个人字体、游戏字体、游戏资源或预生成的字体 Mod。
 
 ## 验证
 
-2.2.1 的合成字重回退、Windows 构建和未完成的游戏内验证见 [VALIDATION-2.2.1.zh-CN.txt](VALIDATION-2.2.1.zh-CN.txt)。2.2.0 的单字体字重改动、变细回退和未完成的 Windows / 游戏内验证见 [VALIDATION-2.2.0.zh-CN.txt](VALIDATION-2.2.0.zh-CN.txt)。
+2.2.2 的单字体基准选择、集合自动匹配、MyGo 升级和预览／生成回归验证见 [VALIDATION-2.2.2.zh-CN.txt](VALIDATION-2.2.2.zh-CN.txt)。2.2.1 的合成字重回退、Windows 构建和未完成的游戏内验证见 [VALIDATION-2.2.1.zh-CN.txt](VALIDATION-2.2.1.zh-CN.txt)。2.2.0 的单字体字重改动、变细回退和未完成的 Windows / 游戏内验证见 [VALIDATION-2.2.0.zh-CN.txt](VALIDATION-2.2.0.zh-CN.txt)。
 
 2.1.2 的进度回归、真实资源生成、源码包重建和验证边界见 [VALIDATION-2.1.2.zh-CN.txt](VALIDATION-2.1.2.zh-CN.txt)。
 
@@ -107,7 +107,7 @@
 
 ## English
 
-HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download the Windows build from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.1 keeps the 2.2.0 single-font medium anchor and continues generation when an individual synthetic glyph operation fails by retaining that glyph's original outline. That single-font output is intentionally no longer byte-for-byte compatible with 2.0.0. Thinning needs a rebuilt `hd2skia.dll`.
+HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download published Windows builds from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.2 defaults lone static fonts to Medium (500), with a saved choice of Regular (400), Medium (500), or Bold (700). The chosen weight stays as drawn; the other weights are independently derived from it. Collections with native Regular, Medium and Bold faces match automatically. MyGo is updated to 0.7.4 and both modules require Go 1.27.3. Regenerate your font mod to apply the change. In-game rendering has not been verified.
 
 ## 许可
 

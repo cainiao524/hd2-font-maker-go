@@ -75,11 +75,7 @@ func (s *buildState) styles(raw []byte, axes []axis, pixelGrid bool) error {
 				r.method = "family_synthetic_emphasis"
 			}
 		} else if s.options.MatchWeights {
-			declared := 400
-			if s.base != nil {
-				declared = int(s.base.Weight)
-			}
-			r.emphasis, r.method = inventory.SingleFontEmphasis(declared, r.weight, s.options.WeightFaces)
+			r.emphasis, r.method = inventory.SingleFontEmphasis(s.options.SingleFontWeight, r.weight, s.options.WeightFaces)
 			if r.emphasis != 0 {
 				r.emphasize = true
 			}

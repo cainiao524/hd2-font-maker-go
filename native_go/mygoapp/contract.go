@@ -65,6 +65,9 @@ type FontSelection struct {
 	// WeightFaces pins weight rows (see pipeline.Options).
 	Family      []FamilyFace `json:"family,omitempty"`
 	WeightFaces map[int]int  `json:"weight_faces,omitempty"`
+	// SingleFontWeight assigns a lone static face to 400, 500, or 700.
+	// Zero means Medium (500); family faces and variable axes ignore it.
+	SingleFontWeight int `json:"single_font_weight,omitempty"`
 }
 
 type BuildRequest struct {

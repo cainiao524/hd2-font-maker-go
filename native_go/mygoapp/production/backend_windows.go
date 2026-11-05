@@ -218,6 +218,7 @@ func (b *Backend) Generate(ctx context.Context, req mygoapp.BuildRequest, progre
 	opts.AtlasExecutable = filepath.Join(b.binDir, "vendor", "msdf-atlas-gen", "msdf-atlas-gen.exe")
 	opts.Family = family
 	opts.WeightFaces = maps.Clone(req.Font.WeightFaces)
+	opts.SingleFontWeight = req.Font.SingleFontWeight
 	opts.Name = strings.TrimSpace(req.ModName)
 	if opts.Name == "" {
 		opts.Name = "HD2 Custom Fonts"

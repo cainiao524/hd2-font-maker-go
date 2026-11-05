@@ -3,10 +3,13 @@ package mygoapp
 import (
 	"context"
 	"image"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+	"hd2font/native/internal/inventory"
 )
 
 func TestCollectionSelectionWithoutWeightMatching(t *testing.T) {
@@ -67,6 +70,80 @@ type familyBackend struct {
 	faces []FontFace
 }
 
+func TestSingleFontWeightChoicePersistsAndResetsForNewFont(t *testing.T) {
+	face := FontFace{Index: 0, Name: "Pixel Light", Style: FaceStyle{Family: "Pixel", Weight: 300, Width: 5}}
+	b := &familyBackend{recordingBackend: recordingBackend{requests: make(chan BuildRequest, 1)}, faces: []FontFace{face}}
+	a := readyApp(t, b)
+	a.inspectFont("stored/single.ttf")
+	awaitState(t, a, func() bool { return !a.busy })
+	if inventory.SingleFontAnchor(a.settings.Font.SingleFontWeight) != 500 {
+		t.Fatal("new single font did not default to medium")
+	}
+	tt := ui.NewTester(a.view, 1140, 1100)
+	if output := os.Getenv("HD2_MYGO_SCREENSHOTS"); output != "" {
+		savePNG(t, filepath.Join(output, "single-default-medium.png"), tt.Image())
+	}
+	a.settings.Font.WeightFaces = map[int]int{700: 0}
+	if err := tt.Click(a.t("weight.medium") + " (500)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click(a.t("weight.single_regular") + " (400)"); err != nil {
+		t.Fatal(err)
+	}
+	if a.settings.Font.SingleFontWeight != 400 || len(a.settings.Font.WeightFaces) != 0 {
+		t.Fatalf("source selection did not restore automatic derivation: %+v", a.settings.Font)
+	}
+	rows := a.weightRows()
+	if rows[0].Kind != "native" || rows[1].Kind != "synthetic" || rows[2].Kind != "synthetic" {
+		t.Fatalf("regular source rows: %+v", rows)
+	}
+	if output := os.Getenv("HD2_MYGO_SCREENSHOTS"); output != "" {
+		savePNG(t, filepath.Join(output, "single-selected-regular.png"), tt.Image())
+	}
+	a.save()
+	loaded, err := LoadSettings(a.settingsPath)
+	if err != nil || loaded.Font.SingleFontWeight != 400 {
+		t.Fatalf("source assignment not saved: %+v %v", loaded.Font, err)
+	}
+	a.settings = loaded
+	a.inspectFont(loaded.Font.Path)
+	awaitState(t, a, func() bool { return !a.busy })
+	if a.settings.Font.SingleFontWeight != 400 {
+		t.Fatal("reloading reset the selected source weight")
+	}
+	a.inspectFont("stored/different.ttf")
+	awaitState(t, a, func() bool { return !a.busy })
+	if inventory.SingleFontAnchor(a.settings.Font.SingleFontWeight) != 500 {
+		t.Fatal("a new font inherited the previous font's source assignment")
+	}
+}
+
+func TestCollectionAutomaticallyMatchesThreeNativeWeights(t *testing.T) {
+	faces := []FontFace{
+		{Index: 0, Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}},
+		{Index: 1, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}},
+		{Index: 2, Name: "Pixel Medium", Style: FaceStyle{Family: "Pixel", Subfamily: "Medium", Weight: 500, Width: 5}},
+	}
+	b := &familyBackend{recordingBackend: recordingBackend{requests: make(chan BuildRequest, 1)}, faces: faces}
+	a := readyApp(t, b)
+	a.settings.Font.SingleFontWeight = 700
+	a.inspectFont("stored/three-weights.ttc")
+	awaitState(t, a, func() bool { return !a.busy })
+	if len(a.settings.Font.Family) != 2 || a.settings.Font.FaceIndex != 1 {
+		t.Fatalf("collection family was not discovered: %+v", a.settings.Font)
+	}
+	for i, row := range a.weightRows() {
+		want := []string{"Pixel Regular", "Pixel Medium", "Pixel Bold"}[i]
+		if row.Kind != "native" || row.Source != want {
+			t.Fatalf("collection weight %d: %+v, want %s as drawn", row.Target, row, want)
+		}
+	}
+	tt := ui.NewTester(a.view, 1140, 1100)
+	if tt.HasText(a.t("weight.single_source")) {
+		t.Fatal("single-font source selector shown for a complete family")
+	}
+}
+
 func (b *familyBackend) InspectFont(_ context.Context, path string) (FontInfo, error) {
 	return FontInfo{Path: path, Faces: b.faces}, nil
 }
@@ -98,8 +175,16 @@ func TestFamilyRowsLabelsAndRebuilds(t *testing.T) {
 	for _, row := range a.weightRows() {
 		kinds[row.Target] = row.Kind
 	}
-	if kinds[400] != "reduction" || kinds[500] != "reduction" || kinds[700] != "native" {
+	if kinds[400] != "reduction" || kinds[500] != "native" || kinds[700] != "synthetic" {
 		t.Fatalf("lone bold rows: %+v", a.weightRows())
+	}
+	a.sourceFace.Style.Weight = 300
+	kinds = map[int]string{}
+	for _, row := range a.weightRows() {
+		kinds[row.Target] = row.Kind
+	}
+	if kinds[400] != "reduction" || kinds[500] != "native" || kinds[700] != "synthetic" {
+		t.Fatalf("lone light rows: %+v", a.weightRows())
 	}
 	a.sourceFace.Style.Weight = 400
 	kinds = map[int]string{}

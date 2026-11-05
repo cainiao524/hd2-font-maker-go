@@ -79,6 +79,7 @@ func (a *application) applyFamily(members []FamilyFace) {
 		}
 	}
 	a.settings.Font.WeightFaces = nil
+	a.settings.Font.SingleFontWeight = 0
 	a.sourceFace = source
 }
 
@@ -155,7 +156,7 @@ func (a *application) weightRows() []weightRow {
 		index, emphasis := inventory.PickFace(weights, a.settings.Font.WeightFaces, target)
 		method := ""
 		if len(members) == 1 {
-			emphasis, method = inventory.SingleFontEmphasis(int(weights[0]), target, a.settings.Font.WeightFaces)
+			emphasis, method = inventory.SingleFontEmphasis(a.settings.Font.SingleFontWeight, target, a.settings.Font.WeightFaces)
 			index = 0
 		}
 		if index < 0 {

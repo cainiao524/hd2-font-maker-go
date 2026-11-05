@@ -33,37 +33,44 @@ func TestPickWeight(t *testing.T) {
 }
 
 func TestSingleFontAnchorAndEmphasis(t *testing.T) {
-	for _, declared := range []int{0, -5, 400, 1001} {
-		if got := SingleFontAnchor(declared); got != 500 {
-			t.Errorf("SingleFontAnchor(%d) = %d, want 500", declared, got)
+	for _, selected := range []int{-5, 0, 1, 300, 450, 900, 1000, 1001} {
+		if got := SingleFontAnchor(selected); got != 500 {
+			t.Errorf("SingleFontAnchor(%d) = %d, want 500", selected, got)
 		}
 	}
-	for _, declared := range []int{1, 300, 450, 500, 700, 900, 1000} {
-		if got := SingleFontAnchor(declared); got != declared {
-			t.Errorf("SingleFontAnchor(%d) = %d, want the declared class", declared, got)
+	for _, selected := range []int{400, 500, 700} {
+		if got := SingleFontAnchor(selected); got != selected {
+			t.Errorf("SingleFontAnchor(%d) = %d, want explicit selection", selected, got)
 		}
 	}
 	for _, c := range []struct {
-		declared, target int
+		selected, target int
 		pins             map[int]int
 		emphasis         int
 		method           string
 	}{
-		{400, 500, nil, 0, "authored_static"},
 		{0, 500, nil, 0, "authored_static"},
-		{400, 400, nil, 300, "synthetic_reduction"},
-		{400, 700, nil, 600, "synthetic_emphasis"},
-		{400, 700, map[int]int{700: 0}, 0, "authored_static"},
-		{400, 400, map[int]int{400: -1}, 300, "synthetic_reduction"},
+		{0, 400, nil, 300, "synthetic_reduction"},
+		{0, 700, nil, 600, "synthetic_emphasis"},
+		{0, 700, map[int]int{700: 0}, 0, "authored_static"},
+		{0, 400, map[int]int{400: -1}, 300, "synthetic_reduction"},
+		{400, 400, nil, 0, "authored_static"},
+		{400, 500, nil, 500, "synthetic_emphasis"},
+		{400, 700, nil, 700, "synthetic_emphasis"},
+		{500, 500, nil, 0, "authored_static"},
 		{700, 700, nil, 0, "authored_static"},
 		{700, 500, nil, 200, "synthetic_reduction"},
 		{700, 400, nil, 100, "synthetic_reduction"},
-		{300, 400, nil, 500, "synthetic_emphasis"},
+		{300, 400, nil, 300, "synthetic_reduction"},
+		{300, 500, nil, 0, "authored_static"},
+		{300, 700, nil, 600, "synthetic_emphasis"},
+		{300, 500, map[int]int{500: -1}, 0, "authored_static"},
+		{700, 400, map[int]int{400: 0}, 0, "authored_static"},
 		{500, 680, nil, 580, "synthetic_emphasis"},
 	} {
-		emphasis, method := SingleFontEmphasis(c.declared, c.target, c.pins)
+		emphasis, method := SingleFontEmphasis(c.selected, c.target, c.pins)
 		if emphasis != c.emphasis || method != c.method {
-			t.Errorf("SingleFontEmphasis(%d, %d, %v) = %d %s, want %d %s", c.declared, c.target, c.pins, emphasis, method, c.emphasis, c.method)
+			t.Errorf("SingleFontEmphasis(%d, %d, %v) = %d %s, want %d %s", c.selected, c.target, c.pins, emphasis, method, c.emphasis, c.method)
 		}
 	}
 }

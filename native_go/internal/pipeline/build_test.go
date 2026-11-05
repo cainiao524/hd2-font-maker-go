@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -321,36 +322,73 @@ func TestSingleFontThinsRegularAndModeratesBold(t *testing.T) {
 	}
 }
 
-func TestSingleBoldFontStaysBold(t *testing.T) {
+func TestSingleFontMetadataStillAnchorsMedium(t *testing.T) {
+	for _, declared := range []uint16{0, 300, 400, 500, 700, 900} {
+		t.Run(strconv.Itoa(int(declared)), func(t *testing.T) {
+			inv, options := pipelineFixture(t)
+			options.Languages = []string{"sc", "tc"}
+			raw, err := os.ReadFile(options.FontPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			parsed, err := sfntio.Parse(raw, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			binary.BigEndian.PutUint16(parsed.Tables["OS/2"][4:], declared)
+			rewritten, err := parsed.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(options.FontPath, rewritten, 0600); err != nil {
+				t.Fatal(err)
+			}
+			ops := &fakeOps{}
+			report, err := build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := styleWeights(ops)
+			if len(ops.styles) != 2 || !got[300] || !got[600] {
+				t.Fatalf("medium anchor styles: %+v", ops.styles)
+			}
+			methods := styleMethods(report)
+			if methods[400] != "synthetic_reduction" || methods[500] != "authored_static" || methods[700] != "synthetic_emphasis" {
+				t.Fatalf("medium anchor methods: %v", methods)
+			}
+			for _, style := range ops.styles {
+				if style.sourceWeight != declared {
+					t.Fatal("a derived weight was used as the source of another weight")
+				}
+			}
+		})
+	}
+}
+
+func TestSingleFontCanBeAssignedToRegular(t *testing.T) {
 	inv, options := pipelineFixture(t)
 	options.Languages = []string{"sc", "tc"}
-	raw, err := os.ReadFile(options.FontPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsed, err := sfntio.Parse(raw, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	binary.BigEndian.PutUint16(parsed.Tables["OS/2"][4:], 700)
-	rewritten, err := parsed.Bytes()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(options.FontPath, rewritten, 0600); err != nil {
-		t.Fatal(err)
-	}
+	options.SingleFontWeight = 400
 	ops := &fakeOps{}
 	report, err := build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := styleWeights(ops)
-	if got[700] || !got[100] || !got[200] {
-		t.Fatalf("bold anchor styles: %+v", ops.styles)
+	methods, weights := styleMethods(report), styleWeights(ops)
+	if methods[400] != "authored_static" || methods[500] != "synthetic_emphasis" || methods[700] != "synthetic_emphasis" || len(ops.styles) != 2 || !weights[500] || !weights[700] {
+		t.Fatalf("regular source did not generate medium and bold: methods=%v styles=%+v", methods, ops.styles)
 	}
-	methods := styleMethods(report)
-	if methods[400] != "synthetic_reduction" || methods[500] != "synthetic_reduction" || methods[700] != "authored_static" {
-		t.Fatalf("bold anchor methods: %v", methods)
+	for _, style := range ops.styles {
+		if style.sourceWeight != 400 {
+			t.Fatal("medium and bold must each derive from the imported font")
+		}
+	}
+	options.MatchWeights = false
+	ops = &fakeOps{}
+	if _, err := build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate); err != nil {
+		t.Fatal(err)
+	}
+	if len(ops.styles) != 0 {
+		t.Fatal("source assignment should not synthesize when matching is disabled")
 	}
 }

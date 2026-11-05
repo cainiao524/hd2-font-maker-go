@@ -1,19 +1,21 @@
-HD2 Font Maker 2.2.1 native source
+HD2 Font Maker 2.2.2 native source
 ====================================
 
-Version 2.2.1 keeps the 2.2.0 single-static-font behavior and additionally
-falls back an individual glyph when synthetic expansion hits a native path
-operation error, so one difficult outline cannot abort the ZIP. Version 2.2.0
-changes single static fonts when weight matching is on: a Regular
-or unspecified face is anchored at medium (500), lighter game slots are eroded,
-and heavier slots use the existing bold curve (Style(600) for 500 -> 700).
+Version 2.2.2 defaults lone static faces to medium (500), regardless of their
+OS/2 metadata. The UI saves an explicit choice of 400, 500, or 700 per source;
+the CLI accepts --single-font-weight with the same values. Lighter game slots
+are eroded and heavier slots use the existing bold curve, each independently
+derived from the imported drawing. A source assigned to 400 stays unchanged
+at 400 and independently generates 500 and 700. Complete native families in
+collections still match their own faces automatically.
+Per-glyph fallback for native path operation errors from 2.2.1 is retained.
 Family faces and variable axes are unchanged. Single-font packages are
 intentionally not byte-for-byte compatible with 2.0.0 or 2.1.x.
 
 Erosion is a negative radius in native/skia_bridge/bridge.cpp (stroke
-difference). Rebuild hd2skia.dll with scripts/build-skia.ps1 or every thinned
-glyph falls back to its original outline. The checked-in DLL in bin/ does not
-accept a negative radius until that rebuild.
+difference). The checked-in hd2skia.dll supports negative radii. If rebuilding
+the bridge, use scripts/build-skia.ps1; an older DLL without negative-radius
+support would make every thinned glyph fall back to its original outline.
 
 The rest of the engine remains the 1.3.7-parity pipeline. Version 2.1.0 added
 the multi-face family path. It is independent of the historical 1.4/1.5
@@ -22,7 +24,12 @@ experiments.
 This directory is the hd2font/native Go module. mygoapp is a second module,
 hd2font/native/mygoapp, using a local replace directive for the engine.
 
-Build on Windows x64 with Go 1.27.3 (the toolchain verified for this version):
+Both modules require Go 1.27.3; the UI uses MyGo v0.7.4. These are the latest
+stable Go and MyGo versions checked on 2026-11-05:
+  https://go.dev/dl/
+  https://github.com/egoist/mygo/releases/tag/v0.7.4
+
+Build on Windows x64 with Go 1.27.3:
   .\mygoapp\build.ps1 -Go 'C:\Program Files\Go\bin\go.exe' -Test
 
 The GUI executable is mygoapp/bin/HD2FontMaker.exe. The script copies the native

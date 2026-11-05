@@ -261,6 +261,9 @@ func (a *application) inspectFont(path string) {
 					a.settings.Font.WeightFaces = remapWeightFaces(previous, a.members())
 				}
 			}
+			if related {
+				a.settings.Font.SingleFontWeight = previous.SingleFontWeight
+			}
 			a.settings.Font.Axes = nil
 			for _, face := range info.Faces {
 				if a.settings.Font.Path == selectedPath && face.Index == a.settings.Font.FaceIndex {

@@ -122,15 +122,13 @@ func WeightRow(weight int) int {
 }
 
 // SingleFontAnchor is the design weight a lone static face stands in for.
-// A missing, zero, out-of-range, or Regular (400) usWeightClass becomes
-// Medium (500): a typical single-file import declares Regular even when the
-// user wants that drawing in the medium slot. Any other class in 1..1000 is
-// kept, so a lone Bold (700) or Light (300) stays what it says it is.
-func SingleFontAnchor(declared int) int {
-	if declared < 1 || declared > 1000 || declared == 400 {
-		return 500
+// The user can assign it to Regular (400), Medium (500), or Bold (700).
+// Unset or invalid choices default to Medium, regardless of font metadata.
+func SingleFontAnchor(selected int) int {
+	if selected == 400 || selected == 500 || selected == 700 {
+		return selected
 	}
-	return declared
+	return 500
 }
 
 // SingleFontEmphasis decides how one game weight is drawn from a lone static
@@ -139,8 +137,8 @@ func SingleFontAnchor(declared int) int {
 // emphasis is the value to pass to synthetic styling, measured from 400 so the
 // existing bold curve is unchanged, or 0 when the outline is used as drawn.
 // method is authored_static, synthetic_emphasis, or synthetic_reduction.
-func SingleFontEmphasis(declared, target int, pins map[int]int) (emphasis int, method string) {
-	anchor := SingleFontAnchor(declared)
+func SingleFontEmphasis(selected, target int, pins map[int]int) (emphasis int, method string) {
+	anchor := SingleFontAnchor(selected)
 	if pins != nil {
 		if pin, ok := pins[WeightRow(target)]; ok && pin == 0 {
 			return 0, "authored_static"
