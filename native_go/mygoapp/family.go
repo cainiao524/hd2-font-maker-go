@@ -1,6 +1,7 @@
 package mygoapp
 
 import (
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -28,16 +29,16 @@ func faceStyleName(s FaceStyle, fallback string) string {
 	return fallback
 }
 
-// familyOf returns the selected face first and then every other face, of the
-// same file or a stored sibling, that shares its family. A variable face has
-// no family: its wght axis draws every weight.
-func familyOf(path string, faces []FontFace, siblings []FamilyFace, selected FontFace) []FamilyFace {
+// familyOf combines compatible static faces from explicitly selected files.
+// With no extra files, it only searches the selected collection. Variable
+// faces use their own axes and never borrow a static family.
+func familyOf(path string, faces []FontFace, selected FontFace, extra ...FontInfo) []FamilyFace {
 	members := []FamilyFace{candidate(path, selected)}
 	if len(selected.Axes) > 0 {
 		return members
 	}
 	// Faces of equal weight all stay: they may cover different characters.
-	id := func(m FamilyFace) string { return fmt.Sprintf("%s#%d", m.Path, m.FaceIndex) }
+	id := familyFaceID
 	seen := map[string]bool{id(members[0]): true}
 	add := func(m FamilyFace) {
 		if !seen[id(m)] && inventory.SameFamily(styleOf(selected.Style), styleOf(m.Style)) {
@@ -50,10 +51,29 @@ func familyOf(path string, faces []FontFace, siblings []FamilyFace, selected Fon
 			add(candidate(path, face))
 		}
 	}
-	for _, sibling := range siblings {
-		add(sibling)
+	for _, info := range extra {
+		for _, face := range info.Faces {
+			if len(face.Axes) == 0 {
+				add(candidate(info.Path, face))
+			}
+		}
 	}
 	return members
+}
+
+// syncSourceView follows the chosen base when another selected file supplies it.
+func (a *application) syncSourceView() {
+	for _, info := range a.importedFonts {
+		if info.Path == a.settings.Font.Path {
+			a.faces, a.facesPath = info.Faces, info.Path
+			break
+		}
+	}
+	for _, face := range a.faces {
+		if a.isSource(face) {
+			a.faceName = faceLabel(face)
+		}
+	}
 }
 
 // applyFamily anchors matched weights at the member closest to 400. Without
@@ -88,6 +108,22 @@ func (a *application) members() []FamilyFace {
 	return append([]FamilyFace{a.sourceFace}, a.settings.Font.Family...)
 }
 
+// Imported files are stored in Fonts/<sha256>/<original filename>. A renamed
+// copy in that same content-addressed store is still the same face. This also
+// recognizes duplicate entries in settings saved by older versions, without
+// reading large font files on the UI thread.
+func familyFaceID(face FamilyFace) string {
+	path := filepath.Clean(face.Path)
+	dir := filepath.Dir(path)
+	hash := filepath.Base(dir)
+	if len(hash) == 64 && strings.EqualFold(filepath.Base(filepath.Dir(dir)), "Fonts") {
+		if _, err := hex.DecodeString(hash); err == nil {
+			path = "sha256:" + strings.ToLower(hash)
+		}
+	}
+	return fmt.Sprintf("%s#%d", path, face.FaceIndex)
+}
+
 // remapWeightFaces keeps manual choices attached to the same stored face when
 // rediscovery changes the member order. Removed faces return to automatic.
 func remapWeightFaces(previous FontSelection, members []FamilyFace) map[int]int {
@@ -99,7 +135,7 @@ func remapWeightFaces(previous FontSelection, members []FamilyFace) map[int]int 
 			mapped = -1 // synthetic emphasis always refers to the current base
 		} else if index >= 0 && index < len(old) {
 			for i, member := range members {
-				if member.Path == old[index].Path && member.FaceIndex == old[index].FaceIndex {
+				if familyFaceID(member) == familyFaceID(old[index]) {
 					mapped = i
 					break
 				}

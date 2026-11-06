@@ -11,7 +11,7 @@ import (
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
-const Version = "2.2.2"
+const Version = "2.2.4"
 
 func readFontAxes(path string) ([][]AxisInfo, error) {
 	f, err := os.Open(path)
@@ -65,12 +65,13 @@ func (a *application) selectFace(face FontFace) {
 	if path == "" {
 		path = a.settings.Font.Path
 	}
-	a.applyFamily(familyOf(path, a.faces, a.siblings, face))
+	a.applyFamily(familyOf(path, a.faces, face, a.importedFonts...))
 	a.settings.Font.Axes = nil
 	if a.settings.Font.Path == path && a.settings.Font.FaceIndex == face.Index {
 		a.settings.Font.Axes = axisValues(face, nil)
 	}
 	a.faceName = faceLabel(face)
+	a.syncSourceView()
 	a.fontDraft = a.settings.Font.Path
 	a.updateModName()
 	a.changed(true)

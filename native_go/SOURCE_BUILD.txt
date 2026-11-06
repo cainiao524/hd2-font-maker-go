@@ -1,15 +1,19 @@
-HD2 Font Maker 2.2.2 native source
+HD2 Font Maker 2.2.4 native source
 ====================================
 
-Version 2.2.2 defaults lone static faces to medium (500), regardless of their
+Version 2.2.4 defaults lone static faces to medium (500), regardless of their
 OS/2 metadata. The UI saves an explicit choice of 400, 500, or 700 per source;
 the CLI accepts --single-font-weight with the same values. Lighter game slots
-are eroded and heavier slots use the existing bold curve, each independently
+are eroded and heavier slots use the gentler bold curve, each independently
 derived from the imported drawing. A source assigned to 400 stays unchanged
 at 400 and independently generates 500 and 700. Complete native families in
 collections still match their own faces automatically.
 Per-glyph fallback for native path operation errors from 2.2.1 is retained.
-Family faces and variable axes are unchanged. Single-font packages are
+Only explicitly selected files are imported; compatible faces in a batch or
+collection match automatically. Variable fonts retain their own axes.
+Selected file paths are saved for reload; directory-discovered legacy sources
+are not restored. Synthetic emphasis is reduced, and identical copies
+are deduplicated. Single-font packages are
 intentionally not byte-for-byte compatible with 2.0.0 or 2.1.x.
 
 Erosion is a negative radius in native/skia_bridge/bridge.cpp (stroke

@@ -1,4 +1,4 @@
-HD2 Font Maker 2.2.2 native edition
+HD2 Font Maker 2.2.4 native edition
 
 Project-owned code is MIT-licensed. Retain the attribution in LICENSE.
 Third-party components retain their own licenses, reproduced in licenses/.

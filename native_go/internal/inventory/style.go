@@ -155,8 +155,9 @@ func SingleFontEmphasis(selected, target int, pins map[int]int) (emphasis int, m
 }
 
 // EmphasisRadius is the signed outline offset, in font units, for a synthetic
-// weight measured from 400. Positive values expand with the 1.3 curve, capped
-// at 2.25% of UPM. Negative values erode at 0.50% of UPM per 100 classes and
+// weight measured from 400. Positive values expand at 0.375% of UPM per 100
+// classes, capped at 1.125%, to retain small text's counters and stroke gaps.
+// Negative values erode at 0.50% of UPM per 100 classes and
 // are capped at 0.50% of UPM, so the medium-to-regular step is half a percent
 // of the em and a larger gap is not cut any deeper.
 func EmphasisRadius(upm float64, weight int, pixelGrid bool) float64 {
@@ -167,7 +168,7 @@ func EmphasisRadius(upm float64, weight int, pixelGrid bool) float64 {
 	var radius float64
 	switch {
 	case delta > 0:
-		radius = math.RoundToEven(upm * math.Min(0.0225, delta*0.000075))
+		radius = math.RoundToEven(upm * math.Min(0.01125, delta*0.0000375))
 	case delta < 0:
 		radius = -math.RoundToEven(upm * math.Min(0.005, -delta*0.00005))
 	default:

@@ -52,13 +52,11 @@ type application struct {
 	// notice is a catalog key shown once as a toast by the next frame.
 	notice   string
 	dragOver bool
-	// facesPath is the stored file faces describes; siblings are same-family
-	// faces of other files found beside it at import, and sourceFace is the
-	// family member the selection uses as its source.
-	facesPath   string
-	siblings    []FamilyFace
-	sourceFace  FamilyFace
-	lastAutoMod string
+	// facesPath is the selected file; sourceFace is the face used as its base.
+	facesPath     string
+	importedFonts []FontInfo
+	sourceFace    FamilyFace
+	lastAutoMod   string
 	// compare shows the game font beside the custom one, split at split (%);
 	// previewWeight is the weight row the preview draws.
 	compare           bool
@@ -184,9 +182,24 @@ func (a *application) setError(key string, err error) {
 }
 
 func (a *application) inspectFont(path string) {
-	if a.busy || path == "" {
+	paths := []string{path}
+	if path == a.settings.Font.Path {
+		for _, selected := range a.settings.Font.SelectedFiles {
+			if !slices.Contains(paths, selected) {
+				paths = append(paths, selected)
+			}
+		}
+	}
+	a.inspectFonts(paths)
+}
+
+// inspectFonts replaces the selection atomically, inspecting only these files.
+// The chooser and drops call this directly so a single selection clears a batch.
+func (a *application) inspectFonts(paths []string) {
+	if a.busy || len(paths) == 0 || paths[0] == "" {
 		return
 	}
+	paths = slices.Clone(paths)
 	a.busy, a.cancelling = true, false
 	a.errorKey, a.errorDetail = "", ""
 	a.progress = Progress{Stage: "source", Fraction: -1}
@@ -195,9 +208,29 @@ func (a *application) inspectFont(path string) {
 	a.cancel = cancel
 	go func() {
 		defer cancel()
-		info, err := a.backend.InspectFont(ctx, path)
-		if err == nil {
-			err = ctx.Err()
+		var infos []FontInfo
+		var err error
+		seen := map[string]bool{}
+		for _, path := range paths {
+			var info FontInfo
+			info, err = a.backend.InspectFont(ctx, path)
+			if err == nil {
+				err = ctx.Err()
+			}
+			if err == nil && len(info.Faces) == 0 {
+				err = errors.New("font contains no faces")
+			}
+			if err != nil {
+				break
+			}
+			if info.Path == "" {
+				info.Path = path
+			}
+			id := familyFaceID(FamilyFace{Path: info.Path})
+			if !seen[id] {
+				seen[id] = true
+				infos = append(infos, info)
+			}
 		}
 		a.post(func() {
 			a.busy, a.cancelling, a.cancel = false, false, nil
@@ -209,28 +242,13 @@ func (a *application) inspectFont(path string) {
 				a.setError("error.font_read", err)
 				return
 			}
-			if len(info.Faces) == 0 {
-				a.setError("error.font_read", errors.New("font contains no faces"))
-				return
-			}
+			info, path := infos[0], paths[0]
 			previous := a.settings.Font
 			selectedPath := info.Path
-			if selectedPath == "" {
-				selectedPath = path
-			}
-			a.faces, a.facesPath, a.siblings = info.Faces, selectedPath, info.Siblings
+			a.importedFonts = infos
+			a.faces, a.facesPath = info.Faces, selectedPath
 			reload := previous.Path == path || previous.Path == selectedPath
 			related, selectedIndex := reload, previous.FaceIndex
-			if !related {
-				// Importing Bold may have anchored the source at a separate Regular
-				// file. Recognize that original member when it is imported again.
-				for _, member := range previous.Family {
-					if member.Path == selectedPath {
-						related, selectedIndex = true, member.FaceIndex
-						break
-					}
-				}
-			}
 			selected := info.Faces[0]
 			if related {
 				for _, face := range info.Faces {
@@ -240,23 +258,15 @@ func (a *application) inspectFont(path string) {
 				}
 			}
 			restoringCache := related && path == selectedPath
-			if restoringCache {
-				// Cached members live in separate folders. Restore the known family
-				// when loading any member, including its previous base. Importing an
-				// original file still discovers the current directory's members.
-				for _, member := range a.members() {
-					if member.Path != "" && member.Path != selectedPath {
-						a.siblings = append(a.siblings, member)
-					}
-				}
-			}
+			// Rebuild only from this explicit selection. Legacy siblings are ignored.
+			members := familyOf(selectedPath, info.Faces, selected, infos[1:]...)
 			if reload && restoringCache && len(previous.Family) > 0 {
 				// Restoring the saved base keeps its exact identity, including when
 				// matching was enabled after explicitly selecting a heavier face.
 				a.sourceFace = candidate(selectedPath, selected)
-				a.settings.Font = FontSelection{Path: selectedPath, FaceIndex: selected.Index, Family: previous.Family, WeightFaces: previous.WeightFaces}
+				a.settings.Font = FontSelection{Path: selectedPath, FaceIndex: selected.Index, Family: members[1:], WeightFaces: remapWeightFaces(previous, members)}
 			} else {
-				a.applyFamily(familyOf(selectedPath, info.Faces, a.siblings, selected))
+				a.applyFamily(members)
 				if related {
 					a.settings.Font.WeightFaces = remapWeightFaces(previous, a.members())
 				}
@@ -264,9 +274,19 @@ func (a *application) inspectFont(path string) {
 			if related {
 				a.settings.Font.SingleFontWeight = previous.SingleFontWeight
 			}
+			a.settings.Font.SelectedFiles = nil
+			if len(infos) > 1 {
+				a.settings.Font.SelectedFiles = []string{a.settings.Font.Path}
+				for _, imported := range infos {
+					if imported.Path != a.settings.Font.Path {
+						a.settings.Font.SelectedFiles = append(a.settings.Font.SelectedFiles, imported.Path)
+					}
+				}
+			}
+			a.syncSourceView()
 			a.settings.Font.Axes = nil
-			for _, face := range info.Faces {
-				if a.settings.Font.Path == selectedPath && face.Index == a.settings.Font.FaceIndex {
+			for _, face := range a.faces {
+				if a.isSource(face) {
 					a.faceName = faceLabel(face)
 					var saved map[string]float32
 					if reload && previous.FaceIndex == face.Index {
@@ -309,6 +329,7 @@ func (a *application) requestPreview() {
 	}
 	req.Font.Axes = maps.Clone(req.Font.Axes)
 	req.Font.Family = slices.Clone(req.Font.Family)
+	req.Font.SelectedFiles = slices.Clone(req.Font.SelectedFiles)
 	req.Font.WeightFaces = maps.Clone(req.Font.WeightFaces)
 	go func() {
 		defer cancel()
@@ -383,6 +404,7 @@ func (a *application) generate() {
 	req.Languages = slices.Clone(req.Languages)
 	req.Font.Axes = maps.Clone(req.Font.Axes)
 	req.Font.Family = slices.Clone(req.Font.Family)
+	req.Font.SelectedFiles = slices.Clone(req.Font.SelectedFiles)
 	req.Font.WeightFaces = maps.Clone(req.Font.WeightFaces)
 	if key := ValidateRequest(req); key != "" {
 		a.setError(key, nil)
@@ -465,13 +487,14 @@ func (a *application) chooseGame() {
 
 func (a *application) chooseFont() {
 	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.window, Title: a.t("dialog.import"), DefaultPath: a.fontDraft,
-		Filters: []mygo.FileFilter{{Name: a.t("file.fonts"), Extensions: []string{"ttf", "otf", "ttc", "otc"}}}})
+		Multiple: true,
+		Filters:  []mygo.FileFilter{{Name: a.t("file.fonts"), Extensions: []string{"ttf", "otf", "ttc", "otc"}}}})
 	if err != nil {
 		a.setError("error.font_read", err)
 		return
 	}
 	if len(paths) != 0 {
-		a.inspectFont(paths[0])
+		a.inspectFonts(paths)
 	}
 }
 

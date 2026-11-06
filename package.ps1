@@ -44,7 +44,10 @@ Run HD2FontMaker.exe and keep the DLLs, vendor folder and license notices beside
 No Python, Go or WebView installation is required to run this application.
 
 Select the game folder, import your font, choose resource groups and output a ZIP.
-Put same-family weight files together before importing to discover their faces.
+Select several font files with Ctrl/Shift or drop them together to match same-family weights.
+Only selected files are imported; internal TTC/OTC faces also match automatically.
+Selections survive restart. Selecting one file clears the previous batch.
+Neighboring files are never scanned; legacy directory-discovered sources are removed.
 Weight matching and outline processing are separate options.
 Install the generated font ZIP with your mod manager. The tool does not install it.
 Use only one font mod replacing the same game resources at a time.

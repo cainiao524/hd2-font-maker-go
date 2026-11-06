@@ -54,6 +54,11 @@ func (b *Backend) preview(ctx context.Context, data []byte, req mygoapp.PreviewR
 		}
 	}
 	if req.MatchWeights && !nativeWeight {
+		if len(axes) == 0 && len(req.Font.Family) > 0 {
+			if req.Font, err = b.uniqueFamily(ctx, data, req.Font); err != nil {
+				return mygoapp.PreviewResult{}, err
+			}
+		}
 		// Choose the face as the pipeline does, so the preview matches the build.
 		style, err := inventory.DescribeStyle(data, req.Font.FaceIndex)
 		if err != nil {

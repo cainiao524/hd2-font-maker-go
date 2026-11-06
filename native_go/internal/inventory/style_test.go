@@ -83,13 +83,16 @@ func TestEmphasisRadiusAmounts(t *testing.T) {
 		want   float64
 	}{
 		{1000, 400, false, 0},
-		{1000, 500, false, 8},
-		{1000, 600, false, 15},
-		{1000, 700, false, 22},
+		{1000, 500, false, 4},
+		{1000, 600, false, 8},
+		{1000, 700, false, 11},
+		{1024, 600, false, 8},
+		{1024, 700, false, 12},
+		{1024, 1000, false, 12},
 		{1000, 300, false, -5},
 		{1000, 100, false, -5},
 		{2048, 300, false, -10},
-		{1000, 700, true, 24},
+		{1000, 700, true, 12},
 		{1024, 300, true, -4},
 	} {
 		if got := EmphasisRadius(c.upm, c.weight, c.pixel); got != c.want {

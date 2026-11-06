@@ -8,7 +8,7 @@ import (
 )
 
 func TestV13PortSurface(t *testing.T) {
-	if Version != "2.2.2" {
+	if Version != "2.2.4" {
 		t.Fatalf("version = %q", Version)
 	}
 	if !slices.Equal(gameLanguages, []string{"sc", "tc", "latin", "jp", "ko"}) {

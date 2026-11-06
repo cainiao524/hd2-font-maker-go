@@ -118,9 +118,8 @@ func (b *Backend) InspectFont(ctx context.Context, path string) (mygoapp.FontInf
 		return mygoapp.FontInfo{}, err
 	}
 	info.Path = stored
-	if info.Siblings, err = familySiblings(ctx, b.userData, path, info.Faces); err != nil {
-		return mygoapp.FontInfo{}, err
-	}
+	// Only collection faces inside the selected file are discovered.
+	info.Siblings = nil
 	return info, nil
 }
 
@@ -181,6 +180,9 @@ func (b *Backend) Generate(ctx context.Context, req mygoapp.BuildRequest, progre
 			return mygoapp.BuildResult{}, err
 		}
 		if len(axes) == 0 {
+			if req.Font, err = b.uniqueFamily(ctx, data, req.Font); err != nil {
+				return mygoapp.BuildResult{}, err
+			}
 			if family, err = b.storedFamily(ctx, req.Font.Family); err != nil {
 				return mygoapp.BuildResult{}, err
 			}

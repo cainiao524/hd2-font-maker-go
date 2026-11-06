@@ -41,13 +41,24 @@ func (s *buildState) prepareFamily(basePixel bool) error {
 	if err != nil {
 		return err
 	}
-	s.family = append([]*inventory.Face{s.base}, faces...)
+	all := append([]*inventory.Face{s.base}, faces...)
+	keys := make([]string, len(all))
+	for i, face := range all {
+		keys[i] = face.Digest
+	}
+	keep, pins := inventory.UniqueFaces(keys, s.options.WeightFaces)
+	s.options.WeightFaces = pins
+	for _, index := range keep {
+		s.family = append(s.family, all[index])
+	}
 	s.familyPixel = map[string]bool{s.base.Digest: basePixel}
 	for i, face := range faces {
 		s.familyPixel[face.Digest] = pixel[i]
 	}
-	for _, face := range s.family {
-		s.report.FamilyFaces = append(s.report.FamilyFaces, fmt.Sprintf("%s (%d)", face.Name, face.Weight))
+	if len(s.family) > 1 {
+		for _, face := range s.family {
+			s.report.FamilyFaces = append(s.report.FamilyFaces, fmt.Sprintf("%s (%d)", face.Name, face.Weight))
+		}
 	}
 	return nil
 }

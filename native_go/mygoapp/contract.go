@@ -50,14 +50,17 @@ type AxisInfo struct {
 type FontInfo struct {
 	Path  string
 	Faces []FontFace
-	// Siblings are faces of other font files beside Path, already stored like
-	// Path, whose family matches one of Faces.
+	// Siblings is a legacy field. The UI ignores it: importing a font only
+	// discovers faces inside the selected file, never neighboring files.
 	Siblings []FamilyFace
 }
 
 type FontSelection struct {
 	Path      string `json:"path"`
 	FaceIndex int    `json:"face_index"`
+	// SelectedFiles records an explicit multi-file import. Older Family entries
+	// without this list must not restore directory-discovered files.
+	SelectedFiles []string `json:"selected_files,omitempty"`
 	// Axes are OpenType design coordinates, shared by preview and generation.
 	// Missing values mean the font's own defaults.
 	Axes map[string]float32 `json:"axes,omitempty"`

@@ -61,6 +61,67 @@ func TestFamilyFacesChooseWeights(t *testing.T) {
 	}
 }
 
+func TestDuplicateFamilyUsesSingleMediumAnchor(t *testing.T) {
+	inv, options := pipelineFixture(t)
+	raw, err := os.ReadFile(options.FontPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copyPath := filepath.Join(t.TempDir(), "copy.ttf")
+	if err := os.WriteFile(copyPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	options.Family = []FontFace{{Path: copyPath}}
+	options.WeightFaces = map[int]int{500: 1}
+	options.Languages = []string{"sc", "tc", "latin"}
+	ops := &fakeOps{}
+	report, err := build(context.Background(), inv, ops, options, nil, (&fakeAtlas{}).generate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.FamilyFaces) != 0 {
+		t.Fatalf("identical source copies became a family: %v", report.FamilyFaces)
+	}
+	methods := map[int]string{}
+	for _, row := range report.StyleAdaptation {
+		methods[row.TargetWeight] = row.Method
+	}
+	if methods[400] != "synthetic_reduction" || methods[500] != "authored_static" || methods[700] != "synthetic_emphasis" {
+		t.Fatalf("duplicate source bypassed Medium anchor: %v", methods)
+	}
+	for _, call := range ops.styles {
+		if call.weight > 600 {
+			t.Fatalf("duplicate copy caused full 400-to-700 synthesis: %+v", call)
+		}
+	}
+}
+
+func TestEqualWeightDifferentCoverageRemainsFamily(t *testing.T) {
+	inv, options := pipelineFixture(t)
+	raw, err := syntheticFont("Supplement", 400, 256, []rune{'?', 'A', 0x570b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "supplement.ttf")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	options.Family = []FontFace{{Path: path}}
+	options.Languages = []string{"sc", "tc", "latin"}
+	report, err := build(context.Background(), inv, &fakeOps{}, options, nil, (&fakeAtlas{}).generate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.FamilyFaces) != 2 {
+		t.Fatal("distinct same-weight coverage was discarded")
+	}
+	for _, row := range report.Coverage {
+		if row.Group == "tc" && row.CustomCharacters != 3 {
+			t.Fatalf("same-weight supplemental character lost: %+v", row)
+		}
+	}
+}
+
 func TestCollectionUsesNativeRegularMediumAndBold(t *testing.T) {
 	inv, options := pipelineFixture(t)
 	weights := []int{700, 500, 400}

@@ -130,13 +130,13 @@ func (a *application) view(c *ui.Context) {
 	})
 	a.dragOver = !a.busy && root.FileDragOver()
 	if !a.busy {
+		var fonts []string
 		for _, path := range root.DroppedFiles() {
 			if slices.Contains(fontExtensions, strings.ToLower(filepath.Ext(path))) {
-				a.fontDraft = path
-				a.inspectFont(path)
-				break
+				fonts = append(fonts, path)
 			}
 		}
+		a.inspectFonts(fonts)
 	}
 }
 
@@ -567,7 +567,7 @@ func (a *application) fontStep(c *ui.Context) {
 		if !a.fontReady() {
 			ui.Row(c).Gap(6).Children(func() {
 				if ui.TextInput(c.Key("font-path"), &a.fontDraft).Label(a.t("file.fonts")).Placeholder(a.t("font.supported")).Height(38).Grow(1).MinWidth(0).Disabled(a.busy).Submitted() {
-					a.inspectFont(a.fontDraft)
+					a.inspectFonts([]string{a.fontDraft})
 				}
 				iconButton(c, "choose-font", a.t("font.add"), "plus", false).Disabled(a.busy).OnClick(a.chooseFont)
 			})

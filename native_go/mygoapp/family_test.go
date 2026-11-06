@@ -49,17 +49,19 @@ func TestCollectionSelectionWithoutWeightMatching(t *testing.T) {
 	}
 }
 
-func TestFamilyKeepsEqualWeightFaces(t *testing.T) {
-	regular := FontFace{Index: 0, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
-	siblings := []FamilyFace{
-		{Path: "cjk.ttf", Name: "Pixel CJK", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}},
-		{Path: "bold.ttf", Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}},
-		{Path: "italic.ttf", Name: "Pixel Italic", Style: FaceStyle{Family: "Pixel", Weight: 400, Width: 5, Italic: true}},
-		{Path: "other.ttf", Name: "Other", Style: FaceStyle{Family: "Other", Weight: 700, Width: 5}},
-	}
-	members := familyOf("latin.ttf", []FontFace{regular}, siblings, regular)
-	if len(members) != 3 || members[1].Path != "cjk.ttf" || members[2].Path != "bold.ttf" {
-		t.Fatalf("family members: %+v", members)
+func TestCollectionKeepsEqualWeightFaces(t *testing.T) {
+	regular := FontFace{Index: 0, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Weight: 400, Width: 5}}
+	supplement := regular
+	supplement.Index, supplement.Name = 1, "Pixel CJK"
+	bold := regular
+	bold.Index, bold.Style.Weight = 2, 700
+	italic := regular
+	italic.Index, italic.Style.Italic = 3, true
+	other := regular
+	other.Index, other.Style.Family = 4, "Other"
+	members := familyOf("font.ttc", []FontFace{regular, supplement, bold, italic, other}, regular)
+	if len(members) != 3 || members[1].FaceIndex != 1 || members[2].FaceIndex != 2 {
+		t.Fatalf("collection members: %+v", members)
 	}
 }
 
@@ -148,7 +150,7 @@ func (b *familyBackend) InspectFont(_ context.Context, path string) (FontInfo, e
 	return FontInfo{Path: path, Faces: b.faces}, nil
 }
 
-func TestReloadKeepsExternalFamilyFaces(t *testing.T) {
+func TestReloadDropsExternalFilesButKeepsCollectionFaces(t *testing.T) {
 	regular := FontFace{Index: 0, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
 	medium := FontFace{Index: 1, Name: "Pixel Medium", Style: FaceStyle{Family: "Pixel", Subfamily: "Medium", Weight: 500, Width: 5}}
 	b := &familyBackend{recordingBackend: recordingBackend{requests: make(chan BuildRequest, 1)}, faces: []FontFace{regular, medium}}
@@ -162,8 +164,8 @@ func TestReloadKeepsExternalFamilyFaces(t *testing.T) {
 	for _, m := range a.members() {
 		found = found || m.Path == bold.Path
 	}
-	if !found || a.settings.Font.FaceIndex != 0 {
-		t.Fatalf("reload lost the external Bold or the Regular source: %+v", a.settings.Font)
+	if found || len(a.members()) != 2 || a.settings.Font.FaceIndex != 0 {
+		t.Fatalf("reload retained an external file or lost the collection: %+v", a.settings.Font)
 	}
 }
 
@@ -219,6 +221,26 @@ type refreshFamilyBackend struct {
 	info FontInfo
 }
 
+func TestRestoreDuplicateCachedFontUsesSingleMediumAnchor(t *testing.T) {
+	dir := filepath.Join("UserData", "Fonts", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	path, copyPath := filepath.Join(dir, "regular.ttf"), filepath.Join(dir, "regular (1).ttf")
+	regular := FontFace{Name: "Regular", Style: FaceStyle{Family: "Sample", Weight: 400, Width: 5}}
+	b := &refreshFamilyBackend{info: FontInfo{Path: path, Faces: []FontFace{regular}}}
+	a := testApp(t, b)
+	a.settings.MatchWeights = true
+	a.settings.Font = FontSelection{Path: path, Family: []FamilyFace{candidate(copyPath, regular)}, WeightFaces: map[int]int{500: 1}}
+	a.sourceFace = candidate(path, regular)
+	a.inspectFont(path)
+	awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
+	if a.errorKey != "" || len(a.settings.Font.Family) != 0 || a.settings.Font.WeightFaces[500] != 0 {
+		t.Fatalf("saved duplicate was not migrated: %+v %s", a.settings.Font, a.errorDetail)
+	}
+	rows := a.weightRows()
+	if len(rows) != 3 || rows[0].Kind != "reduction" || rows[1].Kind != "native" || rows[2].Kind != "synthetic" {
+		t.Fatalf("restored copy bypassed the single font rules: %+v", rows)
+	}
+}
+
 func (b *refreshFamilyBackend) InspectFont(context.Context, string) (FontInfo, error) {
 	return b.info, nil
 }
@@ -227,170 +249,77 @@ func (b *refreshFamilyBackend) Preview(context.Context, PreviewRequest) (Preview
 	return PreviewResult{Image: image.NewRGBA(image.Rect(0, 0, 2, 2))}, nil
 }
 
-func TestReimportRefreshesFamilyAndRemapsWeightPins(t *testing.T) {
-	regular := FontFace{Index: 0, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
-	medium := FamilyFace{Path: "stored/medium.ttf", Name: "Pixel Medium", Style: FaceStyle{Family: "Pixel", Subfamily: "Medium", Weight: 500, Width: 5}}
-	bold := FamilyFace{Path: "stored/bold.ttf", Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}}
-	b := &refreshFamilyBackend{info: FontInfo{Path: "stored/regular.ttf", Faces: []FontFace{regular}, Siblings: []FamilyFace{medium}}}
+func TestImportAndReloadIgnoreExternalFiles(t *testing.T) {
+	regular := FontFace{Index: 0, Name: "Regular", Style: FaceStyle{Family: "Pixel", Weight: 400, Width: 5}}
+	bold := FamilyFace{Path: "stored/bold.ttf", Name: "Bold", Style: FaceStyle{Family: "Pixel", Weight: 700, Width: 5}}
+	b := &refreshFamilyBackend{info: FontInfo{Path: "stored/regular.ttf", Faces: []FontFace{regular}, Siblings: []FamilyFace{bold}}}
 	a := testApp(t, b)
 	a.settings.MatchWeights = true
-	importOriginal := func() {
-		a.inspectFont("downloads/regular.ttf")
+	a.settings.Font = FontSelection{Path: b.info.Path, Family: []FamilyFace{bold}, WeightFaces: map[int]int{500: 0, 700: 1}}
+	for _, path := range []string{b.info.Path, "downloads/regular.ttf"} {
+		a.inspectFont(path)
 		awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
-		if a.errorKey != "" {
-			t.Fatal(a.errorKey, a.errorDetail)
+		if a.errorKey != "" || len(a.settings.Font.Family) != 0 {
+			t.Fatalf("external file survived import: %+v %s", a.settings.Font, a.errorDetail)
+		}
+		if _, ok := a.settings.Font.WeightFaces[700]; ok {
+			t.Fatal("pin to removed external font survived")
+		}
+		if a.weightRows()[2].Kind != "synthetic" {
+			t.Fatal("external Bold still selected")
 		}
 	}
-	importOriginal()
-	a.settings.Font.WeightFaces = map[int]int{400: -1, 500: 1}
-	// Discovery order can change when a newly added file sorts before Medium.
-	b.info.Siblings = []FamilyFace{bold, medium}
-	importOriginal()
-	if len(a.members()) != 3 || a.members()[1].Path != bold.Path {
-		t.Fatalf("reimport discarded the new Bold: %+v", a.members())
+	a.save()
+	saved, err := LoadSettings(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if want := (map[int]int{400: -1, 500: 2}); !reflect.DeepEqual(a.settings.Font.WeightFaces, want) {
-		t.Fatalf("manual pins changed their source: got %v want %v", a.settings.Font.WeightFaces, want)
+	restarted := testApp(t, b)
+	restarted.settings = saved
+	restarted.inspectFont(saved.Font.Path)
+	awaitState(t, restarted, func() bool { return !restarted.busy && !restarted.previewBusy })
+	if len(restarted.settings.Font.Family) != 0 {
+		t.Fatal("restart restored removed external fonts")
 	}
-	rows := a.weightRows()
-	if rows[2].Source != bold.Name || rows[2].Kind != "native" {
-		t.Fatalf("new Bold is not used as drawn: %+v", rows)
-	}
-	// A removed member's pin must not silently select whoever takes its index.
-	b.info.Siblings = []FamilyFace{bold}
-	importOriginal()
-	if want := (map[int]int{400: -1}); !reflect.DeepEqual(a.settings.Font.WeightFaces, want) {
-		t.Fatalf("removed Medium left a stale pin: %v", a.settings.Font.WeightFaces)
-	}
-	// Restoring the cached source still keeps its externally stored family.
-	saved := a.settings.Font
-	b.info.Siblings = nil
-	a.inspectFont(saved.Path)
+	// Explicitly importing the old sibling must replace the selected file.
+	b.info = FontInfo{Path: bold.Path, Faces: []FontFace{{Name: bold.Name, Style: bold.Style}}}
+	a.inspectFont(bold.Path)
 	awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
-	if !reflect.DeepEqual(a.settings.Font, saved) {
-		t.Fatalf("cache reload changed the family: got %+v want %+v", a.settings.Font, saved)
+	if a.settings.Font.Path != bold.Path || len(a.settings.Font.Family) != 0 || len(a.settings.Font.WeightFaces) != 0 {
+		t.Fatalf("new import retained old sources: %+v", a.settings.Font)
 	}
 }
 
-func TestReimportNonBaseFamilyMemberKeepsManualWeights(t *testing.T) {
-	for _, name := range []string{"single-face", "collection"} {
-		t.Run(name, func(t *testing.T) {
-			bold := FontFace{Index: 0, Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}}
-			other := FontFace{Index: 0, Name: "Other Regular", Style: FaceStyle{Family: "Other", Subfamily: "Regular", Weight: 400, Width: 5}}
-			regular := FamilyFace{Path: "stored/regular.ttf", Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
-			faces := []FontFace{bold}
-			if name == "collection" {
-				bold.Index = 1
-				faces = []FontFace{other, bold}
-			}
-			b := &refreshFamilyBackend{info: FontInfo{Path: "stored/bold.font", Faces: faces, Siblings: []FamilyFace{regular}}}
-			a := testApp(t, b)
-			a.settings.MatchWeights = true
-			awaitImport := func() {
-				awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
-				if a.errorKey != "" {
-					t.Fatal(a.errorKey, a.errorDetail)
-				}
-			}
-			a.inspectFont("downloads/bold.font")
-			awaitImport()
-			if name == "collection" {
-				a.selectFace(bold)
-				awaitImport()
-			}
-			if a.settings.Font.Path != regular.Path {
-				t.Fatalf("family base was not Regular: %+v", a.settings.Font)
-			}
-			a.settings.Font.WeightFaces = map[int]int{500: 1, 700: -1}
-			a.inspectFont("downloads/bold.font")
-			awaitImport()
-			if want := (map[int]int{500: 1, 700: -1}); !reflect.DeepEqual(a.settings.Font.WeightFaces, want) {
-				t.Fatalf("reimporting the original Bold reset manual sources: got %v want %v", a.settings.Font.WeightFaces, want)
-			}
-			rows := a.weightRows()
-			if rows[1].Source != "Pixel Bold" || rows[2].Source != regular.Name || rows[2].Kind != "synthetic" {
-				t.Fatalf("manual weights changed rendering after reimport: %+v", rows)
-			}
-			// A different file and family must still reset the old manual choices.
-			b.info = FontInfo{Path: "stored/other.font", Faces: []FontFace{other}}
-			a.inspectFont("downloads/other.font")
-			awaitImport()
-			if len(a.settings.Font.WeightFaces) != 0 || len(a.settings.Font.Family) != 0 {
-				t.Fatalf("unrelated import retained the previous family: %+v", a.settings.Font)
-			}
-		})
-	}
-}
-
-func TestReimportCachedSiblingKeepsFamilyAndPins(t *testing.T) {
-	for _, matchWeights := range []bool{true, false} {
-		name := "matched"
-		if !matchWeights {
-			name = "unmatched"
+func TestCollectionReloadKeepsManualSources(t *testing.T) {
+	regular := FontFace{Index: 0, Name: "Regular", Style: FaceStyle{Family: "Pixel", Weight: 400, Width: 5}}
+	medium := regular
+	medium.Index, medium.Name, medium.Style.Weight = 1, "Medium", 500
+	bold := regular
+	bold.Index, bold.Name, bold.Style.Weight = 2, "Bold", 700
+	b := &refreshFamilyBackend{info: FontInfo{Path: "stored/family.ttc", Faces: []FontFace{regular, medium, bold}}}
+	a := testApp(t, b)
+	a.settings.MatchWeights = true
+	a.inspectFont("downloads/family.ttc")
+	awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
+	a.settings.Font.WeightFaces = map[int]int{500: 2, 700: -1}
+	saved := a.settings.Font
+	for _, path := range []string{"downloads/family.ttc", saved.Path} {
+		a.inspectFont(path)
+		awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
+		if !reflect.DeepEqual(a.settings.Font, saved) {
+			t.Fatalf("collection choices changed: %+v want %+v", a.settings.Font, saved)
 		}
-		t.Run(name, func(t *testing.T) {
-			regular := FontFace{Index: 0, Name: "Pixel Regular", Style: FaceStyle{Family: "Pixel", Subfamily: "Regular", Weight: 400, Width: 5}}
-			medium := FontFace{Index: 0, Name: "Pixel Medium", Style: FaceStyle{Family: "Pixel", Subfamily: "Medium", Weight: 500, Width: 5}}
-			bold := FontFace{Index: 0, Name: "Pixel Bold", Style: FaceStyle{Family: "Pixel", Subfamily: "Bold", Weight: 700, Width: 5}}
-			regularPath, mediumPath, boldPath := "stored/regular.ttf", "stored/medium.ttf", "stored/bold.ttf"
-			b := &refreshFamilyBackend{info: FontInfo{Path: boldPath, Faces: []FontFace{bold}, Siblings: []FamilyFace{candidate(regularPath, regular), candidate(mediumPath, medium)}}}
-			a := testApp(t, b)
-			a.settings.MatchWeights = true
-			wait := func(a *application) {
-				awaitState(t, a, func() bool { return !a.busy && !a.previewBusy })
-				if a.errorKey != "" {
-					t.Fatal(a.errorKey, a.errorDetail)
-				}
-			}
-			a.inspectFont("downloads/bold.ttf")
-			wait(a)
-			a.settings.Font.WeightFaces = map[int]int{500: 2, 700: 1}
-			a.settings.MatchWeights = matchWeights
-			// Cached members live in separate content-hash folders, so importing
-			// this already-known Bold does not rediscover Regular or Medium.
-			b.info.Siblings = nil
-			a.inspectFont(boldPath)
-			wait(a)
-			members := a.members()
-			if len(members) != 3 {
-				t.Fatalf("cached sibling import lost the family: %+v", members)
-			}
-			for weight, path := range map[int]string{500: mediumPath, 700: boldPath} {
-				index, ok := a.settings.Font.WeightFaces[weight]
-				if !ok || index < 0 || index >= len(members) || members[index].Path != path {
-					t.Fatalf("weight %d lost its source %s: pins=%v members=%+v", weight, path, a.settings.Font.WeightFaces, members)
-				}
-			}
-			wantSource := regularPath
-			if !matchWeights {
-				wantSource = boldPath
-			}
-			if a.settings.Font.Path != wantSource {
-				t.Fatalf("source=%s want=%s", a.settings.Font.Path, wantSource)
-			}
-			// Round-trip the resulting settings, then load the selected cached
-			// source as a fresh application does at startup.
-			// Re-enabling matching must not replace an explicitly selected Bold
-			// base on restart (synthetic pins are relative to that base).
-			if !matchWeights {
-				a.settings.MatchWeights = true
-			}
-			a.save()
-			saved, err := LoadSettings(a.settingsPath)
-			if err != nil {
-				t.Fatal(err)
-			}
-			b.info = FontInfo{Path: saved.Font.Path, Faces: []FontFace{regular}}
-			if !matchWeights {
-				b.info.Faces = []FontFace{bold}
-			}
-			restarted := testApp(t, b)
-			restarted.settings = saved
-			restarted.inspectFont(saved.Font.Path)
-			wait(restarted)
-			if !reflect.DeepEqual(restarted.settings.Font, saved.Font) {
-				t.Fatalf("restart lost cached family selections: got %+v want %+v", restarted.settings.Font, saved.Font)
-			}
-		})
+	}
+	a.save()
+	loaded, err := LoadSettings(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := testApp(t, b)
+	restarted.settings = loaded
+	restarted.inspectFont(saved.Path)
+	awaitState(t, restarted, func() bool { return !restarted.busy && !restarted.previewBusy })
+	if !reflect.DeepEqual(restarted.settings.Font, saved) {
+		t.Fatalf("restart changed collection choices: %+v", restarted.settings.Font)
 	}
 }
