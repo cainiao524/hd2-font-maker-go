@@ -59,7 +59,7 @@
   "preview.missing": "Les caractères absents de l’aperçu utiliseront les glyphes d’origine du jeu lors de la génération.",
   "preview.ready": "La taille, la couleur et le fond en jeu sont contrôlés par le jeu.",
   "preview.failed": "Échec de l’aperçu. Consultez frontend.log pour plus de détails.",
-  "preview.sample": "Pour la Super-Terre !\nPlayer G4 - 0123456789",
+  "preview.sample": "Pour la Super-Terre !\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "Normal",
   "weight.medium": "Moyen",
   "weight.bold": "Gras",

@@ -59,7 +59,7 @@
   "preview.missing": "미리 보기에 없는 문자는 생성 시 게임의 원래 글리프로 보완됩니다.",
   "preview.ready": "게임 내 글자 크기, 색상 및 배경은 게임에서 결정합니다.",
   "preview.failed": "미리 보기에 실패했습니다. 자세한 내용은 frontend.log를 확인하세요.",
-  "preview.sample": "슈퍼지구를 위하여!\nPlayer G4 - 0123456789",
+  "preview.sample": "슈퍼지구를 위하여!\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "기본",
   "weight.medium": "중간",
   "weight.bold": "굵게",

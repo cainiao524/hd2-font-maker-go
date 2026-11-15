@@ -60,3 +60,39 @@ func (a *application) selectGamePreview(id string) {
 func flatSample(text string) string { return strings.ReplaceAll(text, "\n", " / ") }
 
 func sampleText(flat string) string { return strings.ReplaceAll(flat, " / ", "\n") }
+
+// previousPreviewSamples are the preview.sample values shipped through 2.2.5.
+// A saved copy of any of them is still the untouched default.
+var previousPreviewSamples = func() map[string]struct{} {
+	slogans := []string{
+		"Für Über-Erde!",
+		"For Super Earth!",
+		"¡Por la Supertierra!",
+		"Pour la Super-Terre !",
+		"Per la Super Terra!",
+		"スーパーアースのために！",
+		"슈퍼지구를 위하여!",
+		"Za Super Ziemię!",
+		"Pela Superterra!",
+		"За Супер-Землю!",
+		"为了超级地球！",
+		"為了超級地球！",
+	}
+	samples := make(map[string]struct{}, len(slogans))
+	for _, slogan := range slogans {
+		samples[slogan+"\nPlayer G4 - 0123456789"] = struct{}{}
+	}
+	return samples
+}()
+
+// normalizePreviewText fills an empty sample and replaces a saved previous
+// default with the current locale's sample. Any other text is a user edit.
+func normalizePreviewText(locale, text string) string {
+	if text == "" {
+		return Translate(locale, "preview.sample")
+	}
+	if _, ok := previousPreviewSamples[text]; ok {
+		return Translate(locale, "preview.sample")
+	}
+	return text
+}

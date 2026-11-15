@@ -59,7 +59,7 @@
   "preview.missing": "預覽中缺少的字元會在產生時使用遊戲原有字形。",
   "preview.ready": "遊戲內的字級、顏色和背景由遊戲控制。",
   "preview.failed": "預覽失敗，詳細資訊請見 frontend.log。",
-  "preview.sample": "為了超級地球！\nPlayer G4 - 0123456789",
+  "preview.sample": "為了超級地球！\n为了超级地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "標準",
   "weight.medium": "中等",
   "weight.bold": "粗體",

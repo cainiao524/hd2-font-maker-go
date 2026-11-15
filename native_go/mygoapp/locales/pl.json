@@ -59,7 +59,7 @@
   "preview.missing": "Znaki brakujące w podglądzie zostaną podczas generowania uzupełnione oryginalnymi glifami gry.",
   "preview.ready": "Rozmiar, kolor i tło w grze są kontrolowane przez grę.",
   "preview.failed": "Nie udało się utworzyć podglądu. Szczegóły są w pliku frontend.log.",
-  "preview.sample": "Za Super Ziemię!\nPlayer G4 - 0123456789",
+  "preview.sample": "Za Super Ziemię!\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "Zwykła",
   "weight.medium": "Średnia",
   "weight.bold": "Pogrubiona",

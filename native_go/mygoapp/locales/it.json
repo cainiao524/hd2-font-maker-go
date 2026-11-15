@@ -59,7 +59,7 @@
   "preview.missing": "I caratteri mancanti nell’anteprima useranno i glifi originali del gioco durante la generazione.",
   "preview.ready": "Dimensioni, colore e sfondo nel gioco sono controllati dal gioco.",
   "preview.failed": "Anteprima non riuscita. I dettagli sono in frontend.log.",
-  "preview.sample": "Per la Super Terra!\nPlayer G4 - 0123456789",
+  "preview.sample": "Per la Super Terra!\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "Normale",
   "weight.medium": "Medio",
   "weight.bold": "Grassetto",

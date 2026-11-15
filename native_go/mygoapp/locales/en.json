@@ -59,7 +59,7 @@
   "preview.missing": "Missing preview characters will use original game glyphs during generation.",
   "preview.ready": "In-game size, color and background are controlled by the game.",
   "preview.failed": "Preview failed. Details are in frontend.log.",
-  "preview.sample": "For Super Earth!\nPlayer G4 - 0123456789",
+  "preview.sample": "For Super Earth!\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nPlayer G4 - 0123456789",
   "weight.regular": "Regular",
   "weight.medium": "Medium",
   "weight.bold": "Bold",

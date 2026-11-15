@@ -59,7 +59,7 @@
   "preview.missing": "Ao gerar o pacote, os carateres em falta na pré-visualização usarão os glifos originais do jogo.",
   "preview.ready": "O tamanho, a cor e o fundo são controlados pelo jogo.",
   "preview.failed": "A pré-visualização falhou. Consulte os detalhes em frontend.log.",
-  "preview.sample": "Pela Superterra!\nPlayer G4 - 0123456789",
+  "preview.sample": "Pela Superterra!\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "Normal",
   "weight.medium": "Médio",
   "weight.bold": "Negrito",
