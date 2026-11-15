@@ -6,7 +6,7 @@ $env:GOPATH = Join-Path $projectRoot '.toolchains/gopath'
 $env:GOCACHE = Join-Path $projectRoot '.toolchains/gocache'
 $env:GOTMPDIR = $env:GOCACHE
 $env:GOTOOLCHAIN = 'local'
-$go = Join-Path $projectRoot '.toolchains/go1.27.2/go/bin/go.exe'
+$go = Join-Path $projectRoot '.toolchains/go1.27.4/go/bin/go.exe'
 $output = if ([IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory } else { Join-Path $PSScriptRoot $OutputDirectory }
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 

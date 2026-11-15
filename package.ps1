@@ -6,7 +6,7 @@ $version = [regex]::Match($versionText, 'const Version = "([0-9]+\.[0-9]+\.[0-9]
 if (!$version) { throw 'Application version was not found' }
 $validationFile = "VALIDATION-$version.zh-CN.txt"
 if (!$SkipBuild) {
-    if (!$Go) { $Go = Join-Path $projectRoot '.toolchains/go1.27.3/go/bin/go.exe' }
+    if (!$Go) { $Go = Join-Path $projectRoot '.toolchains/go1.27.4/go/bin/go.exe' }
     if (!(Test-Path -LiteralPath $Go)) { $Go = (Get-Command go.exe -ErrorAction Stop).Source }
     & (Join-Path $projectRoot 'test.ps1') -Go $Go
 }

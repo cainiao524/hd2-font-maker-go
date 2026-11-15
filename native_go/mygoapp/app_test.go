@@ -377,7 +377,7 @@ func TestReadinessThemeAndLists(t *testing.T) {
 	// The design is dark whatever the system appearance.
 	tt.SetDark(false)
 	tt.Frame()
-	if a.theme == nil || !a.theme.Dark || a.theme.Accent != cYellow {
+	if a.theme == nil || !a.theme.Dark || a.theme.Accent != cYellow || a.theme.InactiveAccent != cYellow {
 		t.Fatal("theme does not keep the design's dark palette")
 	}
 

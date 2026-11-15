@@ -1,0 +1,28 @@
+HD2 Font Maker 2.2.5 验证记录
+验证日期：2026-11-15
+
+工具链与界面
+- 两个 Go 模块的 go 指令均为 1.27.4。MyGo 从 v0.7.4 更新到 v0.9.1，并已执行 go mod tidy。间接依赖版本与 2.2.4 相同，包括 golang.org/x/net v0.59.0 和 golang.org/x/sys v0.48.0。
+- 新增 MyGo v0.9.1 的 MIT 许可证副本。文本与 v0.7.4 的许可证相同。
+- 本程序没有使用 HandleInput、已删除的 sqlite.LibraryPath、ui.Shape，也没有用 mygo build 打包 resources/。
+- 主题将 InactiveAccent 设为与 Accent 相同的黄色。MyGo 0.8 起，未激活窗口会把强调色变成灰色；本程序保持原来的黄色。
+- 生成过程中步骤区的 Opacity 按 MyGo 0.8 起的规则整组变淡，重叠控件不再额外叠暗。字体预览仍由字体引擎画成位图，不经过 ui.Shape。
+
+测试与构建
+- 本轮不在真实 Windows 上。使用 Linux 上的 Go 1.27.4，CGO_ENABLED=0，交叉编译 Windows amd64 测试程序，并用 Wine 9.0 执行。范围与 test.ps1 相同：native_go 的 go test ./... 与 go vet ./...，以及 mygoapp、production、cmd/hd2font-mygo 的测试、vet 和 HD2FontMaker.exe 构建。
+- 有测试的包 19 个全部通过，0 个失败。cmd/hd2font-native 没有测试文件。
+- go test -json 的测试事件：通过 706，跳过 19，失败 0。
+- native_go：通过 627，跳过 16。跳过的是默认不运行的私有字体和 fontTools/Pillow oracle。
+- mygoapp 三个包：通过 79，跳过 3，分别是 TestRealVariableFontPreview、TestSinglePreviewLocales、production.TestLocalOriginalGameFonts。
+- 两个模块的 go vet 都没有输出。
+- go version -m 读到的 EXE 为 go1.27.4、github.com/egoist/mygo v0.9.1、GOOS=windows、GOARCH=amd64、CGO_ENABLED=0、trimpath。文件版本和产品版本文本为 2.2.5.0。
+
+图集临时目录
+- Wine 下 msdf-atlas-gen 退出后，工作目录会短暂返回 sharing violation。立即删除失败，约 200 毫秒后可以删除。generate.go 在读完像素和元数据后重试删除，最多约 1.25 秒。图集参数和像素比对测试通过，这次重试没有改变图集输出。
+- 真实 Windows 上的 2.2.4 测试此前可以通过同一清理检查。本轮没有在真实 Windows 上复跑。
+
+未验证与仍然存在的问题
+- 没有在真实 Windows 桌面启动 HD2FontMaker.exe，没有操作文件对话框，没有安装 Mod，没有验证游戏内显示。
+- 2.0.0 在游戏版本 01.007.200 的简体中文、繁体中文、日文界面结果不代表 2.2.5。
+- 单个字形的原生轮廓运算失败仍按 2.2.1 回退该字形并继续。无法安全回退的字体结构错误仍会失败。本版没有修复这些问题。
+- 单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。

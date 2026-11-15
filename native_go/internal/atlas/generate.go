@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -91,6 +92,18 @@ func ExecutablePath() (string, error) {
 	return "", fmt.Errorf("bundled msdf-atlas-gen.exe not found; set atlas.Options.Executable")
 }
 
+// removeWorkDir deletes the atlas workspace. msdf-atlas-gen can keep that
+// directory open briefly after it exits, which surfaces as a sharing
+// violation. The pixels and metadata have already been read.
+func removeWorkDir(path string) {
+	for attempt := 0; attempt < 25; attempt++ {
+		if err := os.RemoveAll(path); err == nil {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // Generate invokes msdf-atlas-gen directly, without a shell or Python runtime.
 // It always generates 32px MTSDF, range 8, top origin, power-of-two rectangles,
 // aligned pixels, and no kerning. Font preparation and caching belong to callers.
@@ -132,7 +145,7 @@ func Generate(ctx context.Context, sources []Source, opts Options) (*Result, err
 	if err != nil {
 		return nil, fmt.Errorf("create atlas workspace: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer removeWorkDir(work)
 	work, err = filepath.Abs(work)
 	if err != nil {
 		return nil, err
