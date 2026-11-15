@@ -1,6 +1,10 @@
-HD2 Font Maker 2.2.4 native source
+HD2 Font Maker 2.2.5 native source
 ====================================
 
+Version 2.2.5 updates both modules to Go 1.27.4 and the UI module to MyGo
+v0.9.1. Weight synthesis, outlines, atlas parameters and packaging rules are
+unchanged from 2.2.4. The atlas workspace is removed once msdf-atlas-gen
+releases its directory; that retry does not change atlas pixels.
 Version 2.2.4 defaults lone static faces to medium (500), regardless of their
 OS/2 metadata. The UI saves an explicit choice of 400, 500, or 700 per source;
 the CLI accepts --single-font-weight with the same values. Lighter game slots
@@ -28,12 +32,12 @@ experiments.
 This directory is the hd2font/native Go module. mygoapp is a second module,
 hd2font/native/mygoapp, using a local replace directive for the engine.
 
-Both modules require Go 1.27.3; the UI uses MyGo v0.7.4. These are the latest
-stable Go and MyGo versions checked on 2026-11-05:
+Both modules require Go 1.27.4; the UI uses MyGo v0.9.1. These are the latest
+stable Go and MyGo versions checked on 2026-11-15:
   https://go.dev/dl/
-  https://github.com/egoist/mygo/releases/tag/v0.7.4
+  https://github.com/egoist/mygo/releases/tag/v0.9.1
 
-Build on Windows x64 with Go 1.27.3:
+Build on Windows x64 with Go 1.27.4:
   .\mygoapp\build.ps1 -Go 'C:\Program Files\Go\bin\go.exe' -Test
 
 The GUI executable is mygoapp/bin/HD2FontMaker.exe. The script copies the native

@@ -1,6 +1,6 @@
 module hd2font/native
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/pierrec/lz4/v4 v4.1.33

@@ -54,6 +54,8 @@ func (a *application) applyTheme(c *ui.Context) {
 	t.Background, t.Surface, t.SurfaceHover, t.SurfacePressed = cGround, ui.RGB(28, 29, 33), ui.RGB(38, 39, 44), ui.RGB(44, 45, 51)
 	t.Border, t.Text, t.TextMuted = ui.RGB(52, 53, 59), cText, cMuted
 	t.Accent, t.AccentHover, t.AccentPressed, t.AccentText = cYellow, ui.RGB(255, 240, 122), ui.RGB(226, 199, 0), cGround
+	// MyGo 0.8 grays the accent while the window is inactive. This screen keeps the fixed yellow.
+	t.InactiveAccent = t.Accent
 	t.Warning, t.Focus = cWarn, cYellow
 	t.Radius = 0
 	a.theme = &t

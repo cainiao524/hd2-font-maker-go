@@ -12,7 +12,7 @@ $env:GOCACHE = Join-Path $cacheRoot '.toolchains/gocache'
 $env:GOTMPDIR = [IO.Path]::GetTempPath()
 New-Item -ItemType Directory -Force -Path $env:GOPATH,$env:GOCACHE | Out-Null
 $env:GOTOOLCHAIN = 'local'
-if (!$Go) { $Go = Join-Path $projectRoot '.toolchains/go1.27.3/go/bin/go.exe' }
+if (!$Go) { $Go = Join-Path $projectRoot '.toolchains/go1.27.4/go/bin/go.exe' }
 if (!(Test-Path -LiteralPath $Go)) { $Go = (Get-Command go.exe -ErrorAction Stop).Source }
 $go = $Go
 $env:CGO_ENABLED = '0'

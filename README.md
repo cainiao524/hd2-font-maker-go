@@ -27,6 +27,8 @@
 - 请保留 EXE 同目录的 DLL 和 `vendor` 文件夹。
 - 不需要安装 Python、Go 或 WebView。
 
+2.2.5 将构建工具链更新到 Go 1.27.4（2026-11-10 安全版本），界面框架更新到 MyGo 0.9.1。字重、轮廓、图集参数和打包规则没有改动，已有字体 Mod 不必为这次升级重新生成。窗口失焦时仍保持黄色强调色。生成过程中，步骤区域按整组变淡。游戏内显示仍未验证。
+
 2.2.4 支持手动多选或同时拖入多个字体文件，只从所选文件中匹配同家族字重；文件列表和手动绑定随设置保存，重启可恢复。重新只选一个文件会清除上一批文件，同目录自动扫描保持关闭。保留 2.2.3 的温和加粗修正。
 
 2.2.3 取消同目录字体自动扫描：只导入选中的文件，旧设置中的外部字体会在载入时清理。TTC／OTC 集合内部的字重继续自动匹配。修正重命名副本误入多字重模式，并降低合成加粗幅度，缓解小字号笔画粘连。应用修正需要重新生成字体 Mod。
@@ -61,12 +63,14 @@
 
 ## 注意事项
 
-- 2.2.4 尚未做游戏内测试。单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。历史上的 2.0.0 曾在游戏版本 01.007.200 的简体中文、繁体中文、日文界面确认显示正常；那项结果不代表 2.2.4。
+- 2.2.5 尚未做游戏内测试。单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。历史上的 2.0.0 曾在游戏版本 01.007.200 的简体中文、繁体中文、日文界面确认显示正常；那项结果不代表 2.2.5。本版没有修复字体引擎问题：无法安全回退的字体结构错误仍会失败，单个字形的原生轮廓运算失败仍按 2.2.1 回退该字形并继续。
 - 合成字重遇到单个字形的原生轮廓运算错误时会回退该字形并继续生成；如果字体表、字形编码或整个文件无法安全回退，仍会报告失败。
 - 字体版权归原作者所有，请只使用你有权使用的字体，并按其许可分享生成的 Mod。
 - 发行包和源码不包含任何个人字体、游戏字体、游戏资源或预生成的字体 Mod。
 
 ## 验证
+
+2.2.5 的工具链与 MyGo 升级、以及未验证的游戏内显示，见 [VALIDATION-2.2.5.zh-CN.txt](VALIDATION-2.2.5.zh-CN.txt)。
 
 2.2.4 的多选导入、多文件拖放、重启恢复与原生字重预览验证见 [VALIDATION-2.2.4.zh-CN.txt](VALIDATION-2.2.4.zh-CN.txt)。
 
@@ -99,7 +103,7 @@
 
 ## 从源码构建
 
-需要 Windows x64；本版使用 Go 1.27.3 构建和验证。
+需要 Windows x64；本版使用 Go 1.27.4 构建和验证。
 
 ```powershell
 .\build.ps1 -Go '<go.exe 路径>' -Test
@@ -115,7 +119,7 @@
 
 ## English
 
-HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download published Windows builds from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.4 supports selecting or dropping multiple files and matches compatible weights only within that explicit selection. The selection and manual assignments survive restarts. Importing one file replaces the previous batch. Neighboring files are never scanned; internal TTC/OTC faces still match automatically. Synthetic emphasis is gentler, and identical copies no longer trigger family-based extra bolding. The app defaults lone static fonts to Medium (500), with a saved choice of Regular (400), Medium (500), or Bold (700). The chosen weight stays as drawn; the other weights are independently derived from it. Collections with native Regular, Medium and Bold faces match automatically. MyGo is updated to 0.7.4 and both modules require Go 1.27.3. Regenerate your font mod to apply the change. In-game rendering has not been verified.
+HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download published Windows builds from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.5 updates the toolchain to Go 1.27.4 (security release, 2026-11-10) and the UI framework to MyGo 0.9.1. Weight synthesis, outline processing, atlas parameters and packaging rules are unchanged, so an existing font mod does not need to be regenerated for this upgrade. The window keeps its yellow accent when inactive. While a mod is generating, the steps fade as one group. Selecting or dropping multiple files still matches compatible weights only within that explicit selection. The selection and manual assignments survive restarts. Importing one file replaces the previous batch. Neighboring files are never scanned; internal TTC/OTC faces still match automatically. Synthetic emphasis stays at the gentler 2.2.3 curve, and identical copies do not trigger family-based extra bolding. The app defaults lone static fonts to Medium (500), with a saved choice of Regular (400), Medium (500), or Bold (700). Collections with native Regular, Medium and Bold faces match automatically. In-game rendering has not been verified. Per-glyph fallback for a native path failure is unchanged from 2.2.1; a font structure that cannot fall back safely still fails the build. Single-font output remains intentionally different from 2.0.0.
 
 ## 许可
 
