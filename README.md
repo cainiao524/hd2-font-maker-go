@@ -1,3 +1,5 @@
+<p align="center"><strong>简体中文</strong> | <a href="README.zh-TW.md">繁體中文</a> | <a href="README.ja.md">日本語</a> | <a href="README.ko.md">한국어</a> | <a href="README.en.md">English</a></p>
+
 <p align="center">
   <img src="native_go/mygoapp/icons/app.png" width="96" height="96" alt="">
 </p>
@@ -124,3 +126,5 @@ HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply
 ## 许可
 
 项目自有代码采用 [MIT 许可证](LICENSE)。第三方组件保留各自的许可证和署名，见 [native_go/THIRD-PARTY-NOTICES.txt](native_go/THIRD-PARTY-NOTICES.txt) 和 [native_go/LICENSES](native_go/LICENSES)。
+
+其他语言版本与本文件放在同一目录。更新本页时，请一并修改 `README.md`、`README.zh-TW.md`、`README.ja.md`、`README.ko.md` 和 `README.en.md`。
