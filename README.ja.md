@@ -29,6 +29,8 @@
 - EXE と同じ場所にある DLL と `vendor` フォルダーは残してください。
 - Python、Go、WebView をインストールする必要はありません。
 
+2.2.6 の既定プレビューには、簡体字中国語、繁体字中国語、日本語、韓国語、英語の標語と、従来の `Player G4 - 0123456789` が入ります。それ以外の表示言語では、その言語の標語を先頭に残します。保存されていた旧い既定文は自動で新しい文に替わり、自分で書き換えた文はそのままです。説明は簡体字中国語、繁体字中国語、日本語、韓国語、英語で公開しています。フォント生成の規則は変わっていません。このビルドは実際の Windows では動かしておらず、中日韓の字形を含むフォントでプレビューも確認していません。ゲーム内の表示は、まだ検証していません。
+
 2.2.5 では、ビルドのツールチェーンを Go 1.27.4（2026-11-10 のセキュリティリリース）へ、UI フレームワークを MyGo 0.9.1 へ更新しました。ウェイト、アウトライン、アトラスのパラメータ、パッケージングの規則は変わっていません。既存のフォント Mod を、この更新のために作り直す必要はありません。ウィンドウがフォーカスを失っても、黄色のアクセントカラーはそのままです。生成中は、手順の領域がひとまとまりで薄く表示されます。ゲーム内の表示は、まだ検証していません。
 
 2.2.4 では、フォントファイルを手動で複数選ぶか、まとめてドロップできます。同じファミリーのウェイトは、選んだファイルの中だけで割り当てます。ファイルの一覧と手動の割り当ては設定とともに保存され、再起動すると戻ります。ファイルをひとつだけ選び直すと、前のまとまりは消去されます。同じディレクトリの自動スキャンは、オフのままです。2.2.3 の穏やかな擬似太字の修正はそのまま残しています。
@@ -65,7 +67,7 @@
 
 ## 注意事項
 
-- 2.2.5 は、まだゲーム内でテストしていません。単一フォントのウェイト割り当てによる出力は、意図して 2.0.0 とバイト単位では一致させません。過去の 2.0.0 は、ゲームバージョン 01.007.200 の簡体字中国語、繁体字中国語、日本語の画面で、表示が正常であることを確認しています。その結果は 2.2.5 を表しません。この版はフォントエンジンの問題を直していません。安全にフォールバックできないフォント構造のエラーは、これまでどおり失敗します。単一グリフのネイティブ輪郭演算が失敗したときは、2.2.1 と同様に、そのグリフだけフォールバックして続行します。
+- 2.2.6 は、まだゲーム内でテストしておらず、実際の Windows でも動かしていません。プレビューの中日韓の文字は、それらの字形を含むフォントでは確認していません。単一フォントのウェイト割り当てによる出力は、意図して 2.0.0 とバイト単位では一致させません。過去の 2.0.0 は、ゲームバージョン 01.007.200 の簡体字中国語、繁体字中国語、日本語の画面で、表示が正常であることを確認しています。その結果は 2.2.6 を表しません。この版はフォントエンジンの問題を直していません。安全にフォールバックできないフォント構造のエラーは、これまでどおり失敗します。単一グリフのネイティブ輪郭演算が失敗したときは、2.2.1 と同様に、そのグリフだけフォールバックして続行します。
 - 合成ウェイトで、単一グリフのネイティブ輪郭演算が失敗したときは、そのグリフをフォールバックして生成を続けます。フォントテーブル、グリフのエンコーディング、またはファイル全体を安全にフォールバックできない場合は、失敗として報告します。
 - フォントの著作権は原作者にあります。使う権利のあるフォントだけを使い、生成した Mod はそのライセンスに従って共有してください。
 - 配布パッケージとソースコードには、個人のフォント、ゲームのフォント、ゲームのリソース、あらかじめ生成したフォント Mod は含まれていません。
@@ -73,6 +75,8 @@
 ## 検証
 
 検証メモは簡体字中国語です。
+
+2.2.6 の多言語プレビュー、説明文書、および未実施の実 Windows とゲーム内表示の確認については、[VALIDATION-2.2.6.zh-CN.txt](VALIDATION-2.2.6.zh-CN.txt) を参照してください。
 
 2.2.5 のツールチェーンと MyGo の更新、および未検証のゲーム内表示については、[VALIDATION-2.2.5.zh-CN.txt](VALIDATION-2.2.5.zh-CN.txt) を参照してください。
 
@@ -123,7 +127,7 @@ Windows のポータブル版、ソースパッケージ、SHA-256 の一覧を�
 
 ## English
 
-HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download published Windows builds from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.5 updates the toolchain to Go 1.27.4 (security release, 2026-11-10) and the UI framework to MyGo 0.9.1. Weight synthesis, outline processing, atlas parameters and packaging rules are unchanged, so an existing font mod does not need to be regenerated for this upgrade. The window keeps its yellow accent when inactive. While a mod is generating, the steps fade as one group. Selecting or dropping multiple files still matches compatible weights only within that explicit selection. The selection and manual assignments survive restarts. Importing one file replaces the previous batch. Neighboring files are never scanned; internal TTC/OTC faces still match automatically. Synthetic emphasis stays at the gentler 2.2.3 curve, and identical copies do not trigger family-based extra bolding. The app defaults lone static fonts to Medium (500), with a saved choice of Regular (400), Medium (500), or Bold (700). Collections with native Regular, Medium and Bold faces match automatically. In-game rendering has not been verified. Per-glyph fallback for a native path failure is unchanged from 2.2.1; a font structure that cannot fall back safely still fails the build. Single-font output remains intentionally different from 2.0.0.
+HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download published Windows builds from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.6 puts Simplified Chinese, Traditional Chinese, Japanese, Korean, and English in the default preview sample, keeps each other interface language's own slogan first, and replaces a saved copy of any previous default. Custom preview text is left unchanged. READMEs are published in those five languages. This build was not run on a real Windows desktop, and the CJK preview lines were not checked with a font that contains those outlines. Version 2.2.5 updates the toolchain to Go 1.27.4 (security release, 2026-11-10) and the UI framework to MyGo 0.9.1. Weight synthesis, outline processing, atlas parameters and packaging rules are unchanged, so an existing font mod does not need to be regenerated for this upgrade. The window keeps its yellow accent when inactive. While a mod is generating, the steps fade as one group. Selecting or dropping multiple files still matches compatible weights only within that explicit selection. The selection and manual assignments survive restarts. Importing one file replaces the previous batch. Neighboring files are never scanned; internal TTC/OTC faces still match automatically. Synthetic emphasis stays at the gentler 2.2.3 curve, and identical copies do not trigger family-based extra bolding. The app defaults lone static fonts to Medium (500), with a saved choice of Regular (400), Medium (500), or Bold (700). Collections with native Regular, Medium and Bold faces match automatically. In-game rendering has not been verified. Per-glyph fallback for a native path failure is unchanged from 2.2.1; a font structure that cannot fall back safely still fails the build. Single-font output remains intentionally different from 2.0.0.
 
 ## ライセンス
 

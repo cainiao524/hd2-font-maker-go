@@ -1,10 +1,15 @@
-HD2 Font Maker 2.2.5 native source
+HD2 Font Maker 2.2.6 native source
 ====================================
 
-Version 2.2.5 updates both modules to Go 1.27.4 and the UI module to MyGo
-v0.9.1. Weight synthesis, outlines, atlas parameters and packaging rules are
-unchanged from 2.2.4. The atlas workspace is removed once msdf-atlas-gen
+Version 2.2.6 keeps Go 1.27.4 and MyGo v0.9.1. The default preview sample
+now includes Simplified Chinese, Traditional Chinese, Japanese, Korean, and
+English, plus the Player G4 line. Other interface languages keep their own
+slogan first. A saved copy of a previous default sample is replaced; custom
+preview text is not. READMEs are published in those five languages.
+Weight synthesis, outlines, atlas parameters and packaging rules are
+unchanged. The atlas workspace is removed once msdf-atlas-gen
 releases its directory; that retry does not change atlas pixels.
+Version 2.2.5 updated both modules to Go 1.27.4 and MyGo v0.9.1.
 Version 2.2.4 defaults lone static faces to medium (500), regardless of their
 OS/2 metadata. The UI saves an explicit choice of 400, 500, or 700 per source;
 the CLI accepts --single-font-weight with the same values. Lighter game slots

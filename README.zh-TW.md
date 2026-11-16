@@ -29,6 +29,8 @@
 - 請保留 EXE 同目錄的 DLL 和 `vendor` 資料夾。
 - 不需要安裝 Python、Go 或 WebView。
 
+2.2.6 的預設預覽同時包含簡體中文、繁體中文、日文、韓文和英文標語，以及 `Player G4 - 0123456789`。其他介面語言仍把自己的標語放在最前。設定裡仍是舊預設範例的會自動換成新範例，自己改過的文字保持不變。說明文件提供簡體中文、繁體中文、日文、韓文和英文。字型產生規則沒有改動。這一版沒有在真實 Windows 上執行，也沒有用包含中日韓字形的字型驗證預覽。遊戲內顯示仍未驗證。
+
 2.2.5 將建置工具鏈更新到 Go 1.27.4（2026-11-10 的安全性版本），介面框架更新到 MyGo 0.9.1。字重、輪廓、圖集參數和打包規則沒有改動，既有的字型 Mod 不必為了這次升級重新產生。視窗失焦時仍保持黃色強調色。產生過程中，步驟區域會整組變淡。遊戲內顯示仍未驗證。
 
 2.2.4 支援手動多選，或一次拖入多個字型檔。同家族字重只從所選檔案中匹配。檔案清單和手動指定會隨設定儲存，重新啟動後可以還原。重新只選一個檔案會清除上一批檔案。同目錄自動掃描維持關閉。2.2.3 的溫和加粗修正仍然保留。
@@ -65,7 +67,7 @@
 
 ## 注意事項
 
-- 2.2.5 尚未進行遊戲內測試。單一字型的字重匹配輸出，是刻意不再與 2.0.0 逐位元組一致。過去的 2.0.0 曾在遊戲版本 01.007.200 的簡體中文、繁體中文、日文介面確認顯示正常；那項結果並不代表 2.2.5。這一版沒有修復字型引擎的問題：無法安全回退的字型結構錯誤仍會失敗，單一字形的原生輪廓運算失敗時，仍依 2.2.1 回退該字形並繼續。
+- 2.2.6 尚未進行遊戲內測試，也沒有在真實 Windows 桌面上執行。預覽中的中日韓文字沒有用包含這些字形的字型驗證。單一字型的字重匹配輸出，是刻意不再與 2.0.0 逐位元組一致。過去的 2.0.0 曾在遊戲版本 01.007.200 的簡體中文、繁體中文、日文介面確認顯示正常；那項結果並不代表 2.2.6。這一版沒有修復字型引擎的問題：無法安全回退的字型結構錯誤仍會失敗，單一字形的原生輪廓運算失敗時，仍依 2.2.1 回退該字形並繼續。
 - 合成字重若在單一字形遇到原生輪廓運算錯誤，會回退該字形並繼續產生；如果字型表、字形編碼或整個檔案無法安全回退，仍會回報失敗。
 - 字型著作權屬於原作者。請只使用你有權使用的字型，並依照其授權分享產生的 Mod。
 - 發行套件和原始碼不包含任何個人字型、遊戲字型、遊戲資源，或預先產生的字型 Mod。
@@ -73,6 +75,8 @@
 ## 驗證
 
 驗證紀錄為簡體中文。
+
+2.2.6 的多語言預覽範例、說明文件，以及尚未驗證的真實 Windows 和遊戲內顯示，見 [VALIDATION-2.2.6.zh-CN.txt](VALIDATION-2.2.6.zh-CN.txt)。
 
 2.2.5 的工具鏈與 MyGo 升級，以及尚未驗證的遊戲內顯示，見 [VALIDATION-2.2.5.zh-CN.txt](VALIDATION-2.2.5.zh-CN.txt)。
 
@@ -123,7 +127,7 @@
 
 ## English
 
-HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download published Windows builds from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.5 updates the toolchain to Go 1.27.4 (security release, 2026-11-10) and the UI framework to MyGo 0.9.1. Weight synthesis, outline processing, atlas parameters and packaging rules are unchanged, so an existing font mod does not need to be regenerated for this upgrade. The window keeps its yellow accent when inactive. While a mod is generating, the steps fade as one group. Selecting or dropping multiple files still matches compatible weights only within that explicit selection. The selection and manual assignments survive restarts. Importing one file replaces the previous batch. Neighboring files are never scanned; internal TTC/OTC faces still match automatically. Synthetic emphasis stays at the gentler 2.2.3 curve, and identical copies do not trigger family-based extra bolding. The app defaults lone static fonts to Medium (500), with a saved choice of Regular (400), Medium (500), or Bold (700). Collections with native Regular, Medium and Bold faces match automatically. In-game rendering has not been verified. Per-glyph fallback for a native path failure is unchanged from 2.2.1; a font structure that cannot fall back safely still fails the build. Single-font output remains intentionally different from 2.0.0.
+HD2 Font Maker builds a Helldivers 2 font replacement mod from a font you supply. It is a native Windows app (Go engine, MyGo UI, 14 interface languages) that reads the game folder read-only and writes a ZIP for your mod manager. Download published Windows builds from [Releases](https://github.com/cainiao524/hd2-font-maker-go/releases/latest); build from source with `.\build.ps1 -Go '<path-to-go.exe>' -Test`. Version 2.2.6 puts Simplified Chinese, Traditional Chinese, Japanese, Korean, and English in the default preview sample, keeps each other interface language's own slogan first, and replaces a saved copy of any previous default. Custom preview text is left unchanged. READMEs are published in those five languages. This build was not run on a real Windows desktop, and the CJK preview lines were not checked with a font that contains those outlines. Version 2.2.5 updates the toolchain to Go 1.27.4 (security release, 2026-11-10) and the UI framework to MyGo 0.9.1. Weight synthesis, outline processing, atlas parameters and packaging rules are unchanged, so an existing font mod does not need to be regenerated for this upgrade. The window keeps its yellow accent when inactive. While a mod is generating, the steps fade as one group. Selecting or dropping multiple files still matches compatible weights only within that explicit selection. The selection and manual assignments survive restarts. Importing one file replaces the previous batch. Neighboring files are never scanned; internal TTC/OTC faces still match automatically. Synthetic emphasis stays at the gentler 2.2.3 curve, and identical copies do not trigger family-based extra bolding. The app defaults lone static fonts to Medium (500), with a saved choice of Regular (400), Medium (500), or Bold (700). Collections with native Regular, Medium and Bold faces match automatically. In-game rendering has not been verified. Per-glyph fallback for a native path failure is unchanged from 2.2.1; a font structure that cannot fall back safely still fails the build. Single-font output remains intentionally different from 2.0.0.
 
 ## 授權
 
