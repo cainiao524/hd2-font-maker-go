@@ -1,0 +1,24 @@
+HD2 Font Maker 2.2.6 验证记录
+验证日期：2026-11-16
+
+本版内容
+- 默认预览同时包含简体中文、繁体中文、日文、韩文和英文标语，以及原来的 Player G4 - 0123456789。其他界面语言把自己的标语放在最前，不重复。
+- 设置里保存的文字若等于任一语言在 2.2.5 及更早版本的默认示例，会换成当前语言的新示例。其他文字保持不变。
+- 说明文档提供简体中文（README.md）、繁体中文、日文、韩文和英文。
+- 字重合成、轮廓处理、图集参数和打包规则没有改动。继续使用 Go 1.27.4 与 MyGo 0.9.1。
+
+测试与构建
+- 本轮不在真实 Windows 上。使用 Linux 上的 Go 1.27.4，CGO_ENABLED=0，交叉编译 Windows amd64 测试程序，并用 Wine 9.0 执行。范围与 test.ps1 相同：native_go 的 go test ./... 与 go vet ./...，以及 mygoapp、production、cmd/hd2font-mygo 的测试、vet 和 HD2FontMaker.exe 构建。
+- 有测试的包 19 个全部通过，0 个失败。cmd/hd2font-native 没有测试文件。
+- go test -json 的测试事件：通过 710，跳过 19，失败 0。
+- native_go：通过 627，跳过 16。跳过的是默认不运行的私有字体和 fontTools/Pillow oracle。
+- mygoapp 三个包：通过 83，跳过 3，分别是 TestRealVariableFontPreview、TestSinglePreviewLocales、production.TestLocalOriginalGameFonts。
+- 两个模块的 go vet 都没有输出。
+- go version -m 读到的 EXE 为 go1.27.4、github.com/egoist/mygo v0.9.1、GOOS=windows、GOARCH=amd64、CGO_ENABLED=0、trimpath。文件版本和产品版本均为 2.2.6.0。
+
+未验证与仍然存在的问题
+- 没有在真实 Windows 桌面启动 HD2FontMaker.exe，没有操作文件对话框，没有安装 Mod，没有验证游戏内显示。
+- 预览里的中日韩文字没有用包含这些字形的真实字体验证。离线预览测试使用的 Go Regular 没有这些轮廓。
+- 2.0.0 在游戏版本 01.007.200 的简体中文、繁体中文、日文界面结果不代表 2.2.6。
+- 单个字形的原生轮廓运算失败仍按 2.2.1 回退该字形并继续。无法安全回退的字体结构错误仍会失败。本版没有修复这些问题。
+- 单字体字重匹配的输出有意不再与 2.0.0 逐字节一致。
