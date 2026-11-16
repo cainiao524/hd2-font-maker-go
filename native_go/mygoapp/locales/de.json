@@ -59,7 +59,7 @@
   "preview.missing": "Für Zeichen, die in der Vorschau fehlen, werden beim Erstellen die ursprünglichen Glyphen des Spiels verwendet.",
   "preview.ready": "Größe, Farbe und Hintergrund im Spiel werden vom Spiel gesteuert.",
   "preview.failed": "Vorschau fehlgeschlagen. Details stehen in frontend.log.",
-  "preview.sample": "Für Über-Erde!\nPlayer G4 - 0123456789",
+  "preview.sample": "Für Über-Erde!\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "Normal",
   "weight.medium": "Mittel",
   "weight.bold": "Fett",

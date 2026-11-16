@@ -59,7 +59,7 @@
   "preview.missing": "Al generar el paquete, los caracteres ausentes en la vista previa usarán los glifos originales del juego.",
   "preview.ready": "El tamaño, el color y el fondo los controla el juego.",
   "preview.failed": "Error en la vista previa. Consulta los detalles en frontend.log.",
-  "preview.sample": "¡Por la Supertierra!\nPlayer G4 - 0123456789",
+  "preview.sample": "¡Por la Supertierra!\n为了超级地球！\n為了超級地球！\nスーパーアースのために！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "Normal",
   "weight.medium": "Medio",
   "weight.bold": "Negrita",

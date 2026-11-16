@@ -93,9 +93,7 @@ func newApplication(opts Options) (*application, error) {
 	if opts.InitialFont != "" {
 		s.Font = FontSelection{Path: opts.InitialFont}
 	}
-	if s.PreviewText == "" {
-		s.PreviewText = Translate(s.Locale, "preview.sample")
-	}
+	s.PreviewText = normalizePreviewText(s.Locale, s.PreviewText)
 	if s.OutputZIP == "" {
 		s.OutputZIP = filepath.Join(filepath.Dir(path), "HD2-Custom-Font.zip")
 	}

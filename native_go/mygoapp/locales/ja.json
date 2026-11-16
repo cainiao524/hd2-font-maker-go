@@ -59,7 +59,7 @@
   "preview.missing": "プレビューで欠けている文字には、生成時にゲーム本来の字形を使用します。",
   "preview.ready": "ゲーム内の文字サイズ・色・背景はゲーム側で決まります。",
   "preview.failed": "プレビューに失敗しました。詳細は frontend.log を確認してください。",
-  "preview.sample": "スーパーアースのために！\nPlayer G4 - 0123456789",
+  "preview.sample": "スーパーアースのために！\n为了超级地球！\n為了超級地球！\n슈퍼지구를 위하여!\nFor Super Earth!\nPlayer G4 - 0123456789",
   "weight.regular": "標準",
   "weight.medium": "中太",
   "weight.bold": "太字",
